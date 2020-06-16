@@ -5,7 +5,7 @@
  * @param {object} node
  */
 
-unrooted = function(node){
+function unrooted(node){
     var data = {};
     
      // use the Felsenstein equal angle layout algorithm

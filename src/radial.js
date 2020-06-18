@@ -57,8 +57,8 @@ function get_arcs(pd){
     for(var i=0; i<pd.length; i++){
       if(pd[i].thisId !== root){
           data.push({
-                'start': reflectAngle(d3.min([pd[i].angle, sister_angle(pd[i].parentId)]), "Y"),
-                'end':  reflectAngle(d3.max([pd[i].angle, sister_angle(pd[i].parentId)]), "Y"),
+                'start': reflectAngle(Math.min(pd[i].angle, sister_angle(pd[i].parentId)), "Y"),
+                'end':  reflectAngle(Math.max(pd[i].angle, sister_angle(pd[i].parentId)), "Y"),
                 'radius': parent_radius(pd[i].parentId),
                 'thisId': pd[i].thisId,
                 'parentId': pd[i].parentId

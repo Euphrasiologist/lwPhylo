@@ -9,9 +9,9 @@ Newick trees can be parsed using the `readTree()` function. This object can then
 ### Examples
 
 A quick tutorial is now available to see on Observable: https://observablehq.com/@euphrasiologist/lwphylo-tutorial \
-It goes over the three tree layout functions, and hopefully is all quite straightforward. \
+It goes over the three tree layout functions, and hopefully is all quite straightforward. 
 
-For examples in the browser: \ 
+For examples in the browser: 
 
 A radial layout tree: https://euphrasiologist.github.io/lwPhylo/example.html \
 A rectangular layout tree: https://euphrasiologist.github.io/lwPhylo/example2.html

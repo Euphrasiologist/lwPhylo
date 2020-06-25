@@ -18,4 +18,4 @@ A rectangular layout tree: https://euphrasiologist.github.io/lwPhylo/example2.ht
 
 ### Citations/thanks
 
-It expands on some base code found at https://github.com/ArtPoon/slides.
+Original implementation of tree layout schemes are found here: https://github.com/ArtPoon/ggfree.

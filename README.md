@@ -16,6 +16,10 @@ For examples in the browser:
 A radial layout tree: https://euphrasiologist.github.io/lwPhylo/example.html \
 A rectangular layout tree: https://euphrasiologist.github.io/lwPhylo/example2.html
 
-### Citations/thanks
+### Acknowledgements
 
 Original implementation of tree layout schemes are found here: https://github.com/ArtPoon/ggfree.
+
+### Citation
+
+Brown, M (2020). lwPhylo: A lightweight, low level javascript library to plot phylogenies from a Newick file, version 1.0.4

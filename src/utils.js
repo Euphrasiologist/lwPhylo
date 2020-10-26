@@ -13,12 +13,12 @@
 
 // was exported
 
-function preorder(node, list=[]) {
+function preorder(node, list = []) {
     list.push(node);
-    for (var i=0; i < node.children.length; i++) {
+    for (var i = 0; i < node.children.length; i++) {
         list = preorder(node.children[i], list);
     }
-    return(list);
+    return (list);
 }
 
 /**
@@ -44,7 +44,7 @@ function levelorder(root) {
             queue.push(child);
         }
     }
-    return(result);
+    return (result);
 }
 
 /**
@@ -59,7 +59,7 @@ function numTips(thisnode) {
     for (const node of levelorder(thisnode)) {
         if (node.children.length == 0) result++;
     }
-    return(result);
+    return (result);
 }
 
 /**
@@ -73,7 +73,7 @@ function numTips(thisnode) {
 
 // was exported
 
-function fortify(tree, sort=true) {
+function fortify(tree, sort = true) {
     var df = [];
 
     for (const node of preorder(tree)) {
@@ -83,7 +83,7 @@ function fortify(tree, sort=true) {
                 'parentLabel': null,
                 'thisId': node.id,
                 'thisLabel': node.label,
-                'children': node.children.map(x=>x.id),
+                'children': node.children.map(x => x.id),
                 'branchLength': 0.,
                 'isTip': false,
                 'x': node.x,
@@ -97,9 +97,9 @@ function fortify(tree, sort=true) {
                 'parentLabel': node.parent.label,
                 'thisId': node.id,
                 'thisLabel': node.label,
-                'children': node.children.map(x=>x.id),
+                'children': node.children.map(x => x.id),
                 'branchLength': node.branchLength,
-                'isTip': (node.children.length==0),
+                'isTip': (node.children.length == 0),
                 'x': node.x,
                 'y': node.y,
                 'angle': node.angle
@@ -108,11 +108,11 @@ function fortify(tree, sort=true) {
     }
 
     if (sort) {
-        df = df.sort(function(a, b) {
+        df = df.sort(function (a, b) {
             return a.thisId - b.thisId;
         })
     }
-    return(df);
+    return (df);
 }
 
 /**
@@ -125,12 +125,12 @@ function fortify(tree, sort=true) {
 
 // was exported
 
-function edges(df, rectangular=false) {
+function edges(df, rectangular = false) {
     var result = [],
         parent, pair;
 
     // make sure data frame is sorted
-    df.sort(function(a, b) {
+    df.sort(function (a, b) {
         return a.thisId - b.thisId;
     })
 
@@ -144,24 +144,51 @@ function edges(df, rectangular=false) {
         if (parent === null || parent === undefined) continue;
 
         if (rectangular) {
-          var pair = {
-              x1: row.x, y1: row.y, id1: row.thisId,
-              x2: parent.x, y2: row.y, id2: undefined
-          };
-          result.push(pair);
-          var pair = {
-              x1: parent.x, y1: row.y, id1: undefined,
-              x2: parent.x, y2: parent.y, id2: row.parentId
-          };
-          result.push(pair);
+            var pair = {
+                x1: row.x, y1: row.y, id1: row.thisId,
+                x2: parent.x, y2: row.y, id2: undefined
+            };
+            result.push(pair);
+            var pair = {
+                x1: parent.x, y1: row.y, id1: undefined,
+                x2: parent.x, y2: parent.y, id2: row.parentId
+            };
+            result.push(pair);
         }
         else {
-          var pair = {
-              x1: row.x, y1: row.y, id1: row.thisId,
-              x2: parent.x, y2: parent.y, id2: row.parentId
-          };
-          result.push(pair);
+            var pair = {
+                x1: row.x, y1: row.y, id1: row.thisId,
+                x2: parent.x, y2: parent.y, id2: row.parentId
+            };
+            result.push(pair);
         }
     }
-    return(result);
+    return (result);
 }
+
+/**
+ * Iterable mean
+ * Poached from https://github.com/d3/d3-array/blob/master/src/mean.js
+ * (Other array means buggered up the tree)
+ */
+
+function mean(values, valueof) {
+    let count = 0;
+    let sum = 0;
+    if (valueof === undefined) {
+      for (let value of values) {
+        if (value != null && (value = +value) >= value) {
+          ++count, sum += value;
+        }
+      }
+    } else {
+      let index = -1;
+      for (let value of values) {
+        if ((value = valueof(value, ++index, values)) != null && (value = +value) >= value) {
+          ++count, sum += value;
+        }
+      }
+    }
+    if (count) return sum / count;
+  }
+  

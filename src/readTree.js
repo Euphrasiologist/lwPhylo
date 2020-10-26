@@ -13,7 +13,7 @@ function readTree(text) {
     text = text.replace(/ \t/g, '');
 
     var tokens = text.split(/(;|\(|\)|,)/),
-        root = {'parent': null, 'children':[]},
+        root = { 'parent': null, 'children': [] },
         curnode = root,
         nodeId = 0;
 
@@ -50,7 +50,7 @@ function readTree(text) {
         else {
             var nodeinfo = token.split(':');
 
-            if (nodeinfo.length==1) {
+            if (nodeinfo.length == 1) {
                 if (token.startsWith(':')) {
                     curnode.label = "";
                     curnode.branchLength = parseFloat(nodeinfo[0]);
@@ -59,7 +59,7 @@ function readTree(text) {
                     curnode.branchLength = null;
                 }
             }
-            else if (nodeinfo.length==2) {
+            else if (nodeinfo.length == 2) {
                 curnode.label = nodeinfo[0];
                 curnode.branchLength = parseFloat(nodeinfo[1]);
             }
@@ -73,6 +73,6 @@ function readTree(text) {
 
     // if root node is unlabelled
     curnode.id = nodeId;
-     
+
     return (root);
 }

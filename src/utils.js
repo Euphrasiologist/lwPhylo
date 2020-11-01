@@ -145,20 +145,20 @@ function edges(df, rectangular = false) {
 
         if (rectangular) {
             var pair = {
-                x1: row.x, y1: row.y, id1: row.thisId,
-                x2: parent.x, y2: row.y, id2: undefined
+                x1: row.x, y1: row.y, thisId: row.thisId,
+                x2: parent.x, y2: row.y, parentId: undefined
             };
             result.push(pair);
             var pair = {
-                x1: parent.x, y1: row.y, id1: undefined,
-                x2: parent.x, y2: parent.y, id2: row.parentId
+                x1: parent.x, y1: row.y, thisId: undefined,
+                x2: parent.x, y2: parent.y, parentId: row.parentId
             };
             result.push(pair);
         }
         else {
             var pair = {
-                x1: row.x, y1: row.y, id1: row.thisId,
-                x2: parent.x, y2: parent.y, id2: row.parentId
+                x1: row.x, y1: row.y, thisId: row.thisId,
+                x2: parent.x, y2: parent.y, parentId: row.parentId
             };
             result.push(pair);
         }

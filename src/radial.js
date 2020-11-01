@@ -1,4 +1,4 @@
-//import {numTips, fortify} from "./utils.js"
+//import {numTips, fortify, mean} from "./utils.js"
 
 /**
  * Simple wrapper function for getting the data,
@@ -9,9 +9,9 @@
 function radialLayout(node) {
   var data = {};
 
-  data.radii = get_radii(node);
   // TODO: does radial_data need to be printed out?
   data.data = radial_data(node);
+  data.radii = get_radii(node);
   data.arcs = get_arcs(data.data);
 
   return data;

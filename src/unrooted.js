@@ -10,7 +10,7 @@ function unrooted(node) {
 
   // use the Felsenstein equal angle layout algorithm
   var eq = fortify(equalAngleLayout(node));
-  data.tree_df = eq;
+  data.data = eq;
   // make the edges dataset
   data.edges = edges(eq);
 

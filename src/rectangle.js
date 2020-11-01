@@ -8,7 +8,7 @@
 function rectangleLayout(node) {
   var data = {};
 
-  data.horizontal_lines = get_horizontal(node);
+  data.data = get_horizontal(node); // horizontal_lines
   data.vertical_lines = get_vertical(node);
 
   return data;

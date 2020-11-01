@@ -1,6 +1,54 @@
-/** Core phylogeny functions to traverse trees and create initial data frames:
+/** 
+ * Core phylogeny functions to traverse trees and create initial data frames:
 * Thanks to Art Poon - https://github.com/ArtPoon/slides
 */
+
+/** 
+* Subset a tree given a node - i.e. the node of interests and all the descendents
+*/
+
+function subTree(tree, node) {
+    // Thanks Richard Challis!
+    let fullTree = {};
+    tree.data.forEach(obj => {
+        fullTree[obj.thisId] = obj;
+    });
+
+    let subTree = {};
+    const getDescendants = function (rootNodeId) {
+        if (fullTree[rootNodeId]) {
+            subTree[rootNodeId] = fullTree[rootNodeId];
+            if (fullTree[rootNodeId].children) {
+                fullTree[rootNodeId].children.forEach(childNodeId => {
+                    getDescendants(childNodeId);
+                });
+            }
+        }
+    };
+    // call the recursive function
+    getDescendants(node);
+
+    // in each of the functions, data contains the children key
+    const data = [["data", Object.values(subTree)]];
+
+    const nodes = data[0][1].map(d => d.thisId);
+
+    var res = [];
+    // in all keys except data, push to new array
+    for (const node in tree) {
+        if (node === "data") continue;
+        res.push([node, tree[node]]);
+    }
+
+    var filtered = res.map(d => [
+        d[0],
+        d[1].filter(d => nodes.includes(d.thisId))
+    ]);
+
+    //return data;
+
+    return Object.fromEntries(data.concat(filtered));
+}
 
 
 /**
@@ -176,19 +224,18 @@ function mean(values, valueof) {
     let count = 0;
     let sum = 0;
     if (valueof === undefined) {
-      for (let value of values) {
-        if (value != null && (value = +value) >= value) {
-          ++count, sum += value;
+        for (let value of values) {
+            if (value != null && (value = +value) >= value) {
+                ++count, sum += value;
+            }
         }
-      }
     } else {
-      let index = -1;
-      for (let value of values) {
-        if ((value = valueof(value, ++index, values)) != null && (value = +value) >= value) {
-          ++count, sum += value;
+        let index = -1;
+        for (let value of values) {
+            if ((value = valueof(value, ++index, values)) != null && (value = +value) >= value) {
+                ++count, sum += value;
+            }
         }
-      }
     }
     if (count) return sum / count;
-  }
-  
+}

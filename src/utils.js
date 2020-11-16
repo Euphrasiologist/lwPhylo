@@ -11,7 +11,7 @@ function subTree(tree, node) {
     // Thanks Richard Challis!
     let fullTree = {};
     tree.data.forEach(obj => {
-        fullTree[obj.thisId] = obj;
+        fullTree[obj.thisId] = {...obj};
     });
 
     let subTree = {};

@@ -11,10 +11,7 @@ Newick trees can be parsed using the `readTree()` function. This object can then
 A quick tutorial is now available to see on Observable: https://observablehq.com/@euphrasiologist/lwphylo-tutorial \
 It goes over the three tree layout functions, and hopefully is all quite straightforward. 
 
-For examples in the browser: 
-
-A radial layout tree: https://euphrasiologist.github.io/lwPhylo/example.html \
-A rectangular layout tree: https://euphrasiologist.github.io/lwPhylo/example2.html
+Stay tuned for examples in the browser.
 
 ### Acknowledgements
 
@@ -22,4 +19,4 @@ Original implementation of tree layout schemes are found here: https://github.co
 
 ### Citation
 
-Brown, M (2020). lwPhylo: A lightweight, low level javascript library to plot phylogenies from a Newick file, version 1.0.4
+Brown, M (2020). lwPhylo: A lightweight, low level javascript library to plot phylogenies from a Newick file, version 1.1.0

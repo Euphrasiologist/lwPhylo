@@ -1,4 +1,41 @@
 {
-"name": "@euphrasiologist/lwphylo",
-"version": "1.0.4"
+  "name": "lwphylo",
+  "version": "1.1.0",
+  "description": "A lightweight, low level javascript library to plot phylogenies from Newick files.",
+  "main": "dist/lwphylo.js",
+  "unpkg": "dist/lwphylo.min.js",
+  "jsdelivr": "dist/lwphylo.min.js",
+  "module": "src/index.js",
+  "directories": {
+    "example": "examples"
+  },
+  "files": [
+    "dist/**/*.js",
+    "src/**/*.js"
+  ],
+  "scripts": {
+    "pretest": "rollup -c",
+    "prepublish": "/Users/mb39/homebrew/bin/yarn test",
+    "test": "eslint src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Euphrasiologist/lwPhylo.git"
+  },
+  "keywords": [
+    "phylogeny",
+    "visualisation"
+  ],
+  "author": "Max Brown",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Euphrasiologist/lwPhylo/issues"
+  },
+  "homepage": "https://github.com/Euphrasiologist/lwPhylo#readme",
+  "devDependencies": {
+    "eslint": "6",
+    "jsdom": "15",
+    "rollup": "1",
+    "rollup-plugin-terser": "5"
+  }
 }

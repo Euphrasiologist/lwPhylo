@@ -3,12 +3,9 @@
  * list of JS Objects.  Assigns node labels, branch
  * lengths and node IDs (numbering terminal before
  * internal nodes).
- * @param {string} text Newick tree string.
- * @return {object} Root of tree.
- * taken from Art Poon; http://slides.filogeneti.ca/js/phylo.js
  */
 
-function readTree(text) {
+export default function(text) {
     // remove whitespace
     text = text.replace(/ \t/g, '');
 
@@ -71,7 +68,6 @@ function readTree(text) {
         }
     }
 
-    // if root node is unlabelled
     curnode.id = nodeId;
 
     return (root);

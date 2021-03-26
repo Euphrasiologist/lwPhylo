@@ -6,7 +6,7 @@ import { preorder } from "./preorder.js"
  * this is akin to a "phylo" object in R.
  */
 
-export default function(tree, sort = true) {
+export default function (tree, sort = true) {
     var df = [];
 
     for (const node of preorder(tree)) {

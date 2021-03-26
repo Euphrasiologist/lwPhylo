@@ -39,8 +39,8 @@ export default function(pd) {
     for (let i = 0; i < pd.length; i++) {
       if (pd[i].thisId !== root) {
         data.push({
-          'start': reflectAngle(Math.min(pd[i].angle, sisterAngle(pd[i].parentId)), "Y"),
-          'end': reflectAngle(Math.max(pd[i].angle, sisterAngle(pd[i].parentId)), "Y"),
+          'start': reflectAngle(Math.max(pd[i].angle, sisterAngle(pd[i].parentId)), "Y"),
+          'end': reflectAngle(Math.min(pd[i].angle, sisterAngle(pd[i].parentId)), "Y"),
           'radius': parentRadius(pd[i].parentId),
           'thisId': pd[i].thisId,
           'parentId': pd[i].parentId

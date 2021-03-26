@@ -23,7 +23,7 @@ function levelorder(root) {
  * Count the number of tips that descend from this node
  */
 
-export default function(thisnode) {
+export default function (thisnode) {
     var result = 0;
     for (const node of levelorder(thisnode)) {
         if (node.children.length == 0) result++;

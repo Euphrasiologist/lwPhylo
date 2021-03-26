@@ -5,7 +5,7 @@ import polarToCartesian from "./polarToCartesian.js"
  * https://stackoverflow.com/questions/5736398/how-to-calculate-the-svg-path-for-an-arc-of-a-circle
  */
 
-export default function(x, y, radius, startAngle, endAngle) {
+export default function (x, y, radius, startAngle, endAngle) {
 
   var start = polarToCartesian(x, y, radius, startAngle);
   var end = polarToCartesian(x, y, radius, endAngle);

@@ -2,11 +2,11 @@
 * Subset a tree given a node - i.e. the node of interests and all the descendents
 */
 
-export default function(tree, node) {
+export default function (tree, node) {
     // Thanks Richard Challis!
     let fullTree = {};
     tree.data.forEach(obj => {
-        fullTree[obj.thisId] = {...obj};
+        fullTree[obj.thisId] = { ...obj };
     });
 
     let subTree = {};

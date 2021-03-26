@@ -4,7 +4,7 @@
  * (Other array means buggered up the tree)
  */
 
-export default function(values, valueof) {
+export default function (values, valueof) {
     let count = 0;
     let sum = 0;
     if (valueof === undefined) {

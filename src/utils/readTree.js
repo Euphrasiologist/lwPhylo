@@ -5,7 +5,7 @@
  * internal nodes).
  */
 
-export default function(text) {
+export default function (text) {
     // remove whitespace
     text = text.replace(/ \t/g, '');
 
@@ -20,7 +20,7 @@ export default function(text) {
         }
         if (token == '(') {
             // add a child to current node
-            var child = {
+            let child = {
                 'parent': curnode,
                 'children': []
             };
@@ -30,7 +30,7 @@ export default function(text) {
         else if (token == ',') {
             // climb down, add another child to parent
             curnode = curnode.parent;
-            var child = {
+            let child = {
                 'parent': curnode,
                 'children': []
             }

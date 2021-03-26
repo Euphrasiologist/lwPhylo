@@ -1,10 +1,10 @@
 {
-  "name": "lwphylo",
-  "version": "1.1.0",
+  "name": "@euphrasiologist/lwphylo",
+  "version": "1.1.4",
   "description": "A lightweight, low level javascript library to plot phylogenies from Newick files.",
-  "main": "dist/lwphylo.js",
-  "unpkg": "dist/lwphylo.min.js",
-  "jsdelivr": "dist/lwphylo.min.js",
+  "main": "dist/@euphrasiologist/lwphylo.js",
+  "unpkg": "dist/@euphrasiologist/lwphylo.min.js",
+  "jsdelivr": "dist/@euphrasiologist/lwphylo.min.js",
   "module": "src/index.js",
   "directories": {
     "example": "examples"
@@ -15,8 +15,8 @@
   ],
   "scripts": {
     "pretest": "rollup -c",
-    "prepublish": "/Users/mb39/homebrew/bin/yarn test",
-    "test": "eslint src"
+    "test": "eslint src",
+    "prepublishOnly": "rm -rf dist && /Users/mb39/homebrew/bin/yarn test"
   },
   "repository": {
     "type": "git",

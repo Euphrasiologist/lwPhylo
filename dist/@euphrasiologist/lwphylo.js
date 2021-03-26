@@ -1,9 +1,9 @@
-// https://github.com/Euphrasiologist/lwPhylo#readme v1.1.0 Copyright 2020 Max Brown
+// https://github.com/Euphrasiologist/lwPhylo#readme v1.1.4 Copyright 2021 Max Brown
 (function (global, factory) {
-typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
-typeof define === 'function' && define.amd ? define(factory) :
-(global = global || self, global.lwphylo = factory());
-}(this, (function () { 'use strict';
+typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
+typeof define === 'function' && define.amd ? define(['exports'], factory) :
+(global = global || self, factory(global.lwphylo = global.lwphylo || {}));
+}(this, (function (exports) { 'use strict';
 
 // based on https://github.com/d3/d3-plugins/blob/master/fisheye/fisheye.js
 // now archived d3 code?
@@ -71,10 +71,6 @@ const phisheye = {
 
         return rescale();
     }
-};
-
-var phisheye$1 = {
-    phisheye: phisheye
 };
 
 /**
@@ -170,144 +166,64 @@ function fortify(tree, sort = true) {
     return (df);
 }
 
-// find the x & y coordinates of the parental species
-function parentFisheye(d, data /* e.g. lwPhylo.unrooted.data */) {
-    for (let i = 0; i < data.length; i++) {
-      if (d.parentId === data[i].thisId) {
-        return {
-          px: data[i].fisheye.x,
-          py: data[i].fisheye.y
-        };
-      }
-    }
-  }
-
 /**
- * Parse a Newick tree string into a doubly-linked
- * list of JS Objects.  Assigns node labels, branch
- * lengths and node IDs (numbering terminal before
- * internal nodes).
+ * Recursive function for breadth-first search of a tree
+ * the root node is visited first.
  */
 
-function readTree(text) {
-    // remove whitespace
-    text = text.replace(/ \t/g, '');
+function levelorder(root) {
+    // aka breadth-first search
+    var queue = [root],
+        result = [],
+        curnode;
 
-    var tokens = text.split(/(;|\(|\)|,)/),
-        root = { 'parent': null, 'children': [] },
-        curnode = root,
-        nodeId = 0;
-
-    for (const token of tokens) {
-        if (token == "" || token == ';') {
-            continue
-        }
-        if (token == '(') {
-            // add a child to current node
-            var child = {
-                'parent': curnode,
-                'children': []
-            };
-            curnode.children.push(child);
-            curnode = child;  // climb up
-        }
-        else if (token == ',') {
-            // climb down, add another child to parent
-            curnode = curnode.parent;
-            var child = {
-                'parent': curnode,
-                'children': []
-            };
-            curnode.children.push(child);
-            curnode = child;  // climb up
-        }
-        else if (token == ')') {
-            // climb down twice
-            curnode = curnode.parent;
-            if (curnode === null) {
-                break;
-            }
-        }
-        else {
-            var nodeinfo = token.split(':');
-
-            if (nodeinfo.length == 1) {
-                if (token.startsWith(':')) {
-                    curnode.label = "";
-                    curnode.branchLength = parseFloat(nodeinfo[0]);
-                } else {
-                    curnode.label = nodeinfo[0];
-                    curnode.branchLength = null;
-                }
-            }
-            else if (nodeinfo.length == 2) {
-                curnode.label = nodeinfo[0];
-                curnode.branchLength = parseFloat(nodeinfo[1]);
-            }
-            else {
-                // TODO: handle edge cases with >1 ":"
-                console.warn(token, "I don't know what to do with two colons!");
-            }
-            curnode.id = nodeId++;  // assign then increment
+    while (queue.length > 0) {
+        curnode = queue.pop();
+        result.push(curnode);
+        for (const child of curnode.children) {
+            queue.push(child);
         }
     }
-
-    curnode.id = nodeId;
-
-    return (root);
+    return (result);
 }
 
-/** 
-* Subset a tree given a node - i.e. the node of interests and all the descendents
-*/
+/**
+ * Count the number of tips that descend from this node
+ */
 
-function subTree(tree, node) {
-    // Thanks Richard Challis!
-    let fullTree = {};
-    tree.data.forEach(obj => {
-        fullTree[obj.thisId] = {...obj};
-    });
+function numTips(thisnode) {
+    var result = 0;
+    for (const node of levelorder(thisnode)) {
+        if (node.children.length == 0) result++;
+    }
+    return (result);
+}
 
-    let subTree = {};
-    const getDescendants = function (rootNodeId) {
-        if (fullTree[rootNodeId]) {
-            subTree[rootNodeId] = fullTree[rootNodeId];
-            if (fullTree[rootNodeId].children) {
-                fullTree[rootNodeId].children.forEach(childNodeId => {
-                    getDescendants(childNodeId);
-                });
+/**
+ * Iterable mean
+ * Poached from https://github.com/d3/d3-array/blob/master/src/mean.js
+ * (Other array means buggered up the tree)
+ */
+
+function mean(values, valueof) {
+    let count = 0;
+    let sum = 0;
+    if (valueof === undefined) {
+        for (let value of values) {
+            if (value != null && (value = +value) >= value) {
+                ++count, sum += value;
             }
         }
-    };
-    // call the recursive function
-    getDescendants(node);
-
-    // in each of the functions, data contains the children key
-    const data = [["data", Object.values(subTree)]];
-
-    const nodes = data[0][1].map(d => d.thisId);
-
-    var res = [];
-    // in all keys except data, push to new array
-    for (const node in tree) {
-        if (node === "data") continue;
-        res.push([node, tree[node]]);
+    } else {
+        let index = -1;
+        for (let value of values) {
+            if ((value = valueof(value, ++index, values)) != null && (value = +value) >= value) {
+                ++count, sum += value;
+            }
+        }
     }
-
-    var filtered = res.map(d => [
-        d[0],
-        d[1].filter(d => nodes.includes(d.thisId))
-    ]);
-
-    return Object.fromEntries(data.concat(filtered));
+    if (count) return sum / count;
 }
-
-var subTree$1 = {
-    fortify: fortify,
-    parentFisheye: parentFisheye,
-    readTree: readTree,
-    subTree: subTree
-};
 
 /**
  * Take a parsed tree and get the important data from them (i.e. radii, arcs).
@@ -316,9 +232,9 @@ var subTree$1 = {
 function radialData(node) {
     // should start out the same as get_horizontal
     // it's very similar in fact, but keeping separate for clarity.
-    var pd = subTree$1(node);
+    var pd = fortify(node);
   
-    var tip_number = subTree$1(node);
+    var tip_number = numTips(node);
   
     // make tip angles
     var tipID = 1;
@@ -340,7 +256,7 @@ function radialData(node) {
           var angle_2 = pd[i].angle;
         }
       }
-      return subTree$1([angle_1, angle_2]); // see utils.js
+      return mean([angle_1, angle_2]); // see utils.js
     }
   
     // if the node is not a tip...
@@ -510,8 +426,8 @@ function getArcs(pd) {
     for (let i = 0; i < pd.length; i++) {
       if (pd[i].thisId !== root) {
         data.push({
-          'start': reflectAngle(Math.min(pd[i].angle, sisterAngle(pd[i].parentId)), "Y"),
-          'end': reflectAngle(Math.max(pd[i].angle, sisterAngle(pd[i].parentId)), "Y"),
+          'start': reflectAngle(Math.max(pd[i].angle, sisterAngle(pd[i].parentId)), "Y"),
+          'end': reflectAngle(Math.min(pd[i].angle, sisterAngle(pd[i].parentId)), "Y"),
           'radius': parentRadius(pd[i].parentId),
           'thisId': pd[i].thisId,
           'parentId': pd[i].parentId
@@ -547,96 +463,93 @@ function radialLayout(node) {
     return data;
   }
 
-var describeArc$1 = {
-    describeArc: describeArc,
-    radialLayout: radialLayout
-};
-
 /**
  * Rectangle layout algorithm.
  * Attempted copy of .layout.rect() function here https://github.com/ArtPoon/ggfree/blob/master/R/tree.R
  */
 
-function getHorizontal(node) {
-    // phylodata layout...
-    var pd = subTree$1(node);
-    // set y to null... not needed here.
-    pd.map(d => d.y = null);
-    // where y corresponds to a tip, return tip number
-    // make y0 and y1 equal.
-    var tipID = 1;
-    for (let i = 0; i < pd.length; i++) {
-      if (pd[i].isTip === true) {
-        pd[i].y0 = tipID;
-        pd[i].y1 = tipID;
-        tipID += 1;
-      }
+function getHorizontal (node) {
+  // phylodata layout...
+  var pd = fortify(node);
+  // set y to null... not needed here.
+  pd.map(d => d.y = null);
+  // where y corresponds to a tip, return tip number
+  // make y0 and y1 equal.
+  var tipID = 1;
+  for (let i = 0; i < pd.length; i++) {
+    if (pd[i].isTip === true) {
+      pd[i].y0 = tipID;
+      pd[i].y1 = tipID;
+      tipID += 1;
     }
-  
-    // probably incredibly inefficient for large trees.
-    // gets the y values of two child branches by looping through the whole tree...
-    function yVals(child_1, child_2) {
-      for (var i = 0; i < pd.length; i++) {
-        if (pd[i].thisId === child_1) {
-          var y1 = pd[i].y0;
-        }
-        if (pd[i].thisId === child_2) {
-          var y2 = pd[i].y0;
-        }
-      }
-      return subTree$1(([y1, y2]))
-    }
-  
-    // if the node is not a tip...
-    for (let i = 0; i < pd.length; i++) {
-      if (pd[i].isTip === false) {
-        // then y0 === y1 and is the mean of the parental nodes
-        pd[i].y0 = yVals(pd[i].children[0], pd[i].children[1]);
-        pd[i].y1 = yVals(pd[i].children[0], pd[i].children[1]);
-      }
-    }
-  
-    // find root
-    var root = pd.map(d => d.parentId === null ? d.thisId : null).filter(d => d != null)[0];
-  
-    // sort the data temporarily in decreasing parentId
-    pd.sort((a, b) => b.thisId - a.thisId);
-  
-    // get the branchlength of the parentID
-    function getParentBranchLength(current_parentId) {
-      for (var i = 0; i < pd.length; i++) {
-        if (pd[i].thisId === current_parentId) {
-          var branchLength = pd[i].x1;
-        }
-      }
-      return branchLength;
-    }
-  
-    // last loop...
-    // now get the x0 and x1 coordinates.
-    for (let i = 0; i < pd.length; i++) {
-      // special cases where parent is the root.
-      if (pd[i].parentId === root) {
-        // x0 = 0 and x1 is branch length
-        pd[i].x0 = 0;
-        pd[i].x1 = pd[i].branchLength;
-      } else {
-        // the x0 is that of the parent
-        var parent_branchLength = getParentBranchLength(pd[i].parentId);
-        pd[i].x0 = parent_branchLength;
-        // the x1 is the sum of parent and current branchlength
-        pd[i].x1 = parent_branchLength + pd[i].branchLength;
-      }
-    }
-  
-    // return the original sorted data
-    pd.sort((a, b) => a.thisId - b.thisId);
-  
-    // remove root?
-  
-    // finally get rid of unwanted y, x and angle properties
-    return pd.map(({ y, x, angle, ...item }) => item);
   }
+
+  // probably incredibly inefficient for large trees.
+  // gets the y values of two child branches by looping through the whole tree...
+  function yVals(child_1, child_2) {
+    for (var i = 0; i < pd.length; i++) {
+      if (pd[i].thisId === child_1) {
+        var y1 = pd[i].y0;
+      }
+      if (pd[i].thisId === child_2) {
+        var y2 = pd[i].y0;
+      }
+    }
+    return mean(([y1, y2]))
+  }
+
+  // if the node is not a tip...
+  for (let i = 0; i < pd.length; i++) {
+    if (pd[i].isTip === false) {
+      // then y0 === y1 and is the mean of the parental nodes
+      pd[i].y0 = yVals(pd[i].children[0], pd[i].children[1]);
+      pd[i].y1 = yVals(pd[i].children[0], pd[i].children[1]);
+    }
+  }
+
+  // find root
+  var root = pd.map(d => d.parentId === null ? d.thisId : null).filter(d => d != null)[0];
+
+  // sort the data temporarily in decreasing parentId
+  pd.sort((a, b) => b.thisId - a.thisId);
+
+  // get the branchlength of the parentID
+  function getParentBranchLength(current_parentId) {
+    for (var i = 0; i < pd.length; i++) {
+      if (pd[i].thisId === current_parentId) {
+        var branchLength = pd[i].x1;
+      }
+    }
+    return branchLength;
+  }
+
+  // last loop...
+  // now get the x0 and x1 coordinates.
+  for (let i = 0; i < pd.length; i++) {
+    // special cases where parent is the root.
+    if (pd[i].parentId === root) {
+      // x0 = 0 and x1 is branch length
+      pd[i].x0 = 0;
+      pd[i].x1 = pd[i].branchLength;
+    } else {
+      // the x0 is that of the parent
+      var parent_branchLength = getParentBranchLength(pd[i].parentId);
+      pd[i].x0 = parent_branchLength;
+      // the x1 is the sum of parent and current branchlength
+      pd[i].x1 = parent_branchLength + pd[i].branchLength;
+    }
+  }
+
+  // return the original sorted data
+  pd.sort((a, b) => a.thisId - b.thisId);
+
+  // remove root?
+
+  // finally get rid of unwanted y, x and angle properties
+  /* eslint-disable no-unused-vars */
+  return pd.map(({ y, x, angle, ...item }) => item);
+  /* eslint-enable no-unused-vars */
+}
 
 /**
  * Get the vertical lines to draw.
@@ -691,9 +604,61 @@ function rectangleLayout(node) {
     return data;
   }
 
-var rectangleLayout$1 = {
-    rectangleLayout: rectangleLayout
-};
+/**
+ * Convert parsed Newick tree from fortify() into data frame of edges
+ * this is akin to a "phylo" object in R, where thisID and parentId
+ * are the $edge slot. I think.
+ */
+
+function edges(df, rectangular = false) {
+    var result = [],
+      parent;
+  
+    // make sure data frame is sorted
+    df.sort(function(a, b) {
+      return a.thisId - b.thisId;
+    });
+  
+    for (const row of df) {
+      if (row.parentId === null) {
+        continue; // skip the root
+      }
+      parent = df[row.parentId];
+      if (parent === null || parent === undefined) continue;
+  
+      if (rectangular) {
+        var pair1 = {
+          x1: row.x,
+          y1: row.y,
+          id1: row.thisId,
+          x2: parent.x,
+          y2: row.y,
+          id2: undefined
+        };
+        result.push(pair1);
+        var pair2 = {
+          x1: parent.x,
+          y1: row.y,
+          id1: undefined,
+          x2: parent.x,
+          y2: parent.y,
+          id2: row.parentId
+        };
+        result.push(pair2);
+      } else {
+        var pair3 = {
+          x1: row.x,
+          y1: row.y,
+          id1: row.thisId,
+          x2: parent.x,
+          y2: parent.y,
+          id2: row.parentId
+        };
+        result.push(pair3);
+      }
+    }
+    return result;
+  }
 
 /**
  * Equal-angle layout algorithm for unrooted trees.
@@ -708,7 +673,7 @@ function equalAngleLayout(node) {
       node.start = 0.;  // guarantees no arcs overlap 0
       node.end = 2.; // *pi
       node.angle = 0.;  // irrelevant
-      node.ntips = subTree$1(node);
+      node.ntips = numTips(node);
       node.x = 0;
       node.y = 0;
     }
@@ -719,7 +684,7 @@ function equalAngleLayout(node) {
       // the child of the current node
       child = node.children[i];
       // the number of tips the child node has
-      child.ntips = subTree$1(child);
+      child.ntips = numTips(child);
   
       // assign proportion of arc to this child
       arc = (node.end - node.start) * child.ntips / node.ntips;
@@ -748,29 +713,155 @@ function equalAngleLayout(node) {
 function unrooted(node) {
     var data = {};
     // use the Felsenstein equal angle layout algorithm
-    var eq = subTree$1(equalAngleLayout(node));
+    var eq = fortify(equalAngleLayout(node));
     data.data = eq;
     // make the edges dataset
-    data.edges = subTree$1(eq);
+    data.edges = edges(eq);
   
     return data;
   }
 
-var unrooted$1 = {
-    unrooted: unrooted
-};
+// find the x & y coordinates of the parental species
+function parentFisheye(d, data /* e.g. lwPhylo.unrooted.data */) {
+    for (let i = 0; i < data.length; i++) {
+      if (d.parentId === data[i].thisId) {
+        return {
+          px: data[i].fisheye.x,
+          py: data[i].fisheye.y
+        };
+      }
+    }
+  }
 
-var index = {
-    phisheye: phisheye$1,
-    radialLayout: describeArc$1,
-    describeArc: describeArc$1,
-    rectangleLayout: rectangleLayout$1,
-    unrooted: unrooted$1,
-    parentFisheye: subTree$1,
-    readTree: subTree$1,
-    subTree: subTree$1
-};
+/**
+ * Parse a Newick tree string into a doubly-linked
+ * list of JS Objects.  Assigns node labels, branch
+ * lengths and node IDs (numbering terminal before
+ * internal nodes).
+ */
 
-return index;
+function readTree(text) {
+    // remove whitespace
+    text = text.replace(/ \t/g, '');
+
+    var tokens = text.split(/(;|\(|\)|,)/),
+        root = { 'parent': null, 'children': [] },
+        curnode = root,
+        nodeId = 0;
+
+    for (const token of tokens) {
+        if (token == "" || token == ';') {
+            continue
+        }
+        if (token == '(') {
+            // add a child to current node
+            let child = {
+                'parent': curnode,
+                'children': []
+            };
+            curnode.children.push(child);
+            curnode = child;  // climb up
+        }
+        else if (token == ',') {
+            // climb down, add another child to parent
+            curnode = curnode.parent;
+            let child = {
+                'parent': curnode,
+                'children': []
+            };
+            curnode.children.push(child);
+            curnode = child;  // climb up
+        }
+        else if (token == ')') {
+            // climb down twice
+            curnode = curnode.parent;
+            if (curnode === null) {
+                break;
+            }
+        }
+        else {
+            var nodeinfo = token.split(':');
+
+            if (nodeinfo.length == 1) {
+                if (token.startsWith(':')) {
+                    curnode.label = "";
+                    curnode.branchLength = parseFloat(nodeinfo[0]);
+                } else {
+                    curnode.label = nodeinfo[0];
+                    curnode.branchLength = null;
+                }
+            }
+            else if (nodeinfo.length == 2) {
+                curnode.label = nodeinfo[0];
+                curnode.branchLength = parseFloat(nodeinfo[1]);
+            }
+            else {
+                // TODO: handle edge cases with >1 ":"
+                console.warn(token, "I don't know what to do with two colons!");
+            }
+            curnode.id = nodeId++;  // assign then increment
+        }
+    }
+
+    curnode.id = nodeId;
+
+    return (root);
+}
+
+/** 
+* Subset a tree given a node - i.e. the node of interests and all the descendents
+*/
+
+function subTree(tree, node) {
+    // Thanks Richard Challis!
+    let fullTree = {};
+    tree.data.forEach(obj => {
+        fullTree[obj.thisId] = {...obj};
+    });
+
+    let subTree = {};
+    const getDescendants = function (rootNodeId) {
+        if (fullTree[rootNodeId]) {
+            subTree[rootNodeId] = fullTree[rootNodeId];
+            if (fullTree[rootNodeId].children) {
+                fullTree[rootNodeId].children.forEach(childNodeId => {
+                    getDescendants(childNodeId);
+                });
+            }
+        }
+    };
+    // call the recursive function
+    getDescendants(node);
+
+    // in each of the functions, data contains the children key
+    const data = [["data", Object.values(subTree)]];
+
+    const nodes = data[0][1].map(d => d.thisId);
+
+    var res = [];
+    // in all keys except data, push to new array
+    for (const node in tree) {
+        if (node === "data") continue;
+        res.push([node, tree[node]]);
+    }
+
+    var filtered = res.map(d => [
+        d[0],
+        d[1].filter(d => nodes.includes(d.thisId))
+    ]);
+
+    return Object.fromEntries(data.concat(filtered));
+}
+
+exports.describeArc = describeArc;
+exports.parentFisheye = parentFisheye;
+exports.phisheye = phisheye;
+exports.radialLayout = radialLayout;
+exports.readTree = readTree;
+exports.rectangleLayout = rectangleLayout;
+exports.subTree = subTree;
+exports.unrooted = unrooted;
+
+Object.defineProperty(exports, '__esModule', { value: true });
 
 })));

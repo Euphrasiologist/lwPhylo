@@ -1,4 +1,4 @@
-// https://github.com/Euphrasiologist/lwPhylo#readme v1.1.4 Copyright 2021 Max Brown
+// https://github.com/Euphrasiologist/lwPhylo#readme v1.1.5 Copyright 2021 Max Brown
 (function (global, factory) {
 typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 typeof define === 'function' && define.amd ? define(['exports'], factory) :

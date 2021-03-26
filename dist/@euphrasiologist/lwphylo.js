@@ -78,19 +78,19 @@ const phisheye = {
  * https://stackoverflow.com/questions/5736398/how-to-calculate-the-svg-path-for-an-arc-of-a-circle
  */
 
-function polarToCartesian(centerX, centerY, radius, angleInRadians) {
-    return {
-      x: centerX + (radius * Math.cos(angleInRadians)),
-      y: centerY + (radius * Math.sin(angleInRadians))
-    };
-  }
+function polarToCartesian (centerX, centerY, radius, angleInRadians) {
+  return {
+    x: centerX + (radius * Math.cos(angleInRadians)),
+    y: centerY + (radius * Math.sin(angleInRadians))
+  };
+}
 
 /**
  * Describe the arc to draw
  * https://stackoverflow.com/questions/5736398/how-to-calculate-the-svg-path-for-an-arc-of-a-circle
  */
 
-function describeArc(x, y, radius, startAngle, endAngle) {
+function describeArc (x, y, radius, startAngle, endAngle) {
 
   var start = polarToCartesian(x, y, radius, startAngle);
   var end = polarToCartesian(x, y, radius, endAngle);
@@ -124,7 +124,7 @@ function preorder(node, list = []) {
  * this is akin to a "phylo" object in R.
  */
 
-function fortify(tree, sort = true) {
+function fortify (tree, sort = true) {
     var df = [];
 
     for (const node of preorder(tree)) {
@@ -191,7 +191,7 @@ function levelorder(root) {
  * Count the number of tips that descend from this node
  */
 
-function numTips(thisnode) {
+function numTips (thisnode) {
     var result = 0;
     for (const node of levelorder(thisnode)) {
         if (node.children.length == 0) result++;
@@ -205,7 +205,7 @@ function numTips(thisnode) {
  * (Other array means buggered up the tree)
  */
 
-function mean(values, valueof) {
+function mean (values, valueof) {
     let count = 0;
     let sum = 0;
     if (valueof === undefined) {
@@ -229,142 +229,142 @@ function mean(values, valueof) {
  * Take a parsed tree and get the important data from them (i.e. radii, arcs).
  */
 
-function radialData(node) {
-    // should start out the same as get_horizontal
-    // it's very similar in fact, but keeping separate for clarity.
-    var pd = fortify(node);
-  
-    var tip_number = numTips(node);
-  
-    // make tip angles
-    var tipID = 1;
-    for (let i = 0; i < pd.length; i++) {
-      if (pd[i].isTip == true) {
-        pd[i].angle = (tipID / tip_number) * 2 * Math.PI;
-        tipID += 1;
-      }
+function radialData (node) {
+  // should start out the same as get_horizontal
+  // it's very similar in fact, but keeping separate for clarity.
+  var pd = fortify(node);
+
+  var tip_number = numTips(node);
+
+  // make tip angles
+  var tipID = 1;
+  for (let i = 0; i < pd.length; i++) {
+    if (pd[i].isTip == true) {
+      pd[i].angle = (tipID / tip_number) * 2 * Math.PI;
+      tipID += 1;
     }
-  
-    // probably incredibly inefficient for large trees.
-    // gets the y values of two child branches by looping through the whole tree...
-    function internalNodeAngle(child_1, child_2) {
-      for (var i = 0; i < pd.length; i++) {
-        if (pd[i].thisId === child_1) {
-          var angle_1 = pd[i].angle;
-        }
-        if (pd[i].thisId === child_2) {
-          var angle_2 = pd[i].angle;
-        }
-      }
-      return mean([angle_1, angle_2]); // see utils.js
-    }
-  
-    // if the node is not a tip...
-    for (let i = 0; i < pd.length; i++) {
-      if (pd[i].isTip === false) {
-        // then y0 === y1 and is the mean of the parental nodes
-        pd[i].angle = internalNodeAngle(pd[i].children[0], pd[i].children[1]);
-      }
-    }
-  
-    // find root
-    var root = pd.map(d => d.parentId === null ? d.thisId : null).filter(d => d != null)[0];
-  
-    // sort the data temporarily in decreasing parentId
-    pd.sort((a, b) => b.thisId - a.thisId);
-  
-    // get the branchlength of the parentID
-    function getParentBranchLength(current_parentId) {
-      for (var i = 0; i < pd.length; i++) {
-        if (pd[i].thisId === current_parentId) {
-          var branchLength = pd[i].r;
-        }
-      }
-      return branchLength;
-    }
-  
-    // assign depths (branch lengths) to radii
-    for (let i = 0; i < pd.length; i++) {
-      // special cases where parent is the root.
-      if (pd[i].parentId === root) {
-  
-        if (pd[i].isTip === true) {
-          // radius is branch length at root?
-          pd[i].r = pd[i].branchLength;
-          pd[i].x = pd[i].branchLength;
-          pd[i].y = 0;
-  
-        } else { // it's a node
-          // radius is branch length at root?
-          pd[i].r = pd[i].branchLength;
-          pd[i].x = pd[i].branchLength * Math.cos(pd[i].angle);
-          pd[i].y = pd[i].branchLength * Math.sin(pd[i].angle);
-        }
-  
-      } else {
-        // the x0 is that of the parent
-        var parent_branchLength = getParentBranchLength(pd[i].parentId);
-        // the x1 is the sum of parent and current branchlength
-        pd[i].r = parent_branchLength + pd[i].branchLength;
-        // at the same time we can make x and y from polar coordinates
-        // this is creating some NaN's, may cause problems later.
-        pd[i].x = (parent_branchLength + pd[i].branchLength) * Math.cos(pd[i].angle);
-        pd[i].y = (parent_branchLength + pd[i].branchLength) * Math.sin(pd[i].angle);
-      }
-    }
-  
-    // at this point the first element is the root
-    pd[0].r = 0;
-    pd[0].x = 0;
-    pd[0].y = 0;
-  
-    // return the original sorted data
-    //pd.sort((a,b) => a.thisId - b.thisId)
-  
-    return pd;
   }
+
+  // probably incredibly inefficient for large trees.
+  // gets the y values of two child branches by looping through the whole tree...
+  function internalNodeAngle(child_1, child_2) {
+    for (var i = 0; i < pd.length; i++) {
+      if (pd[i].thisId === child_1) {
+        var angle_1 = pd[i].angle;
+      }
+      if (pd[i].thisId === child_2) {
+        var angle_2 = pd[i].angle;
+      }
+    }
+    return mean([angle_1, angle_2]); // see utils.js
+  }
+
+  // if the node is not a tip...
+  for (let i = 0; i < pd.length; i++) {
+    if (pd[i].isTip === false) {
+      // then y0 === y1 and is the mean of the parental nodes
+      pd[i].angle = internalNodeAngle(pd[i].children[0], pd[i].children[1]);
+    }
+  }
+
+  // find root
+  var root = pd.map(d => d.parentId === null ? d.thisId : null).filter(d => d != null)[0];
+
+  // sort the data temporarily in decreasing parentId
+  pd.sort((a, b) => b.thisId - a.thisId);
+
+  // get the branchlength of the parentID
+  function getParentBranchLength(current_parentId) {
+    for (var i = 0; i < pd.length; i++) {
+      if (pd[i].thisId === current_parentId) {
+        var branchLength = pd[i].r;
+      }
+    }
+    return branchLength;
+  }
+
+  // assign depths (branch lengths) to radii
+  for (let i = 0; i < pd.length; i++) {
+    // special cases where parent is the root.
+    if (pd[i].parentId === root) {
+
+      if (pd[i].isTip === true) {
+        // radius is branch length at root?
+        pd[i].r = pd[i].branchLength;
+        pd[i].x = pd[i].branchLength;
+        pd[i].y = 0;
+
+      } else { // it's a node
+        // radius is branch length at root?
+        pd[i].r = pd[i].branchLength;
+        pd[i].x = pd[i].branchLength * Math.cos(pd[i].angle);
+        pd[i].y = pd[i].branchLength * Math.sin(pd[i].angle);
+      }
+
+    } else {
+      // the x0 is that of the parent
+      var parent_branchLength = getParentBranchLength(pd[i].parentId);
+      // the x1 is the sum of parent and current branchlength
+      pd[i].r = parent_branchLength + pd[i].branchLength;
+      // at the same time we can make x and y from polar coordinates
+      // this is creating some NaN's, may cause problems later.
+      pd[i].x = (parent_branchLength + pd[i].branchLength) * Math.cos(pd[i].angle);
+      pd[i].y = (parent_branchLength + pd[i].branchLength) * Math.sin(pd[i].angle);
+    }
+  }
+
+  // at this point the first element is the root
+  pd[0].r = 0;
+  pd[0].x = 0;
+  pd[0].y = 0;
+
+  // return the original sorted data
+  //pd.sort((a,b) => a.thisId - b.thisId)
+
+  return pd;
+}
 
 /**
  * Take a parsed tree and get the radii of each of the nodes.
  */
 
-function getRadii(node) {
-    var data = radialData(node);
-  
-    // for the current iteration of the loop find the matching parentId
-    function getRadius(current_node) {
-      for (var i = 0; i < data.length; i++) {
-        if (data[i].thisId === current_node.parentId) {
-          var radius = data[i].r;
-        }
-      }
-      return radius;
-    }
-  
-    var arcs = [];
-    // find root
-    var root = data.map(d => d.parentId === null ? d.thisId : null).filter(d => d != null)[0];
-  
+function getRadii (node) {
+  var data = radialData(node);
+
+  // for the current iteration of the loop find the matching parentId
+  function getRadius(current_node) {
     for (var i = 0; i < data.length; i++) {
-      if (data[i].thisId !== root) {
-  
-        arcs.push({
-          'thisId': data[i].thisId,
-          'thisLabel': data[i].thisLabel,
-          'x0': data[i].x,
-          // radius of the parent * cos(angle)
-          'x1': getRadius(data[i]) * Math.cos(data[i].angle),
-          'y0': data[i].y,
-          // radius of the parent * sin(angle)
-          'y1': getRadius(data[i]) * Math.sin(data[i].angle),
-          'isTip': data[i].isTip
-        });
+      if (data[i].thisId === current_node.parentId) {
+        var radius = data[i].r;
       }
     }
-  
-    return arcs;
-  
+    return radius;
   }
+
+  var arcs = [];
+  // find root
+  var root = data.map(d => d.parentId === null ? d.thisId : null).filter(d => d != null)[0];
+
+  for (var i = 0; i < data.length; i++) {
+    if (data[i].thisId !== root) {
+
+      arcs.push({
+        'thisId': data[i].thisId,
+        'thisLabel': data[i].thisLabel,
+        'x0': data[i].x,
+        // radius of the parent * cos(angle)
+        'x1': getRadius(data[i]) * Math.cos(data[i].angle),
+        'y0': data[i].y,
+        // radius of the parent * sin(angle)
+        'y1': getRadius(data[i]) * Math.sin(data[i].angle),
+        'isTip': data[i].isTip
+      });
+    }
+  }
+
+  return arcs;
+
+}
 
 /**
  * Takes parent data and returns a start value (radians),
@@ -373,19 +373,19 @@ function getRadii(node) {
  * thanks https://codereview.stackexchange.com/questions/187510/angle-reflection-function
  */
 
-function reflectAngle(rad, dir) {
-    const c = Math.cos(rad), s = Math.sin(rad);
-    const PI_sub = "3.1415";
-  
-    function checkSign(x) {
-      if (x.toString().includes(PI_sub)) {
-        x = Math.abs(x);
-      }
-      return x;
+function reflectAngle (rad, dir) {
+  const c = Math.cos(rad), s = Math.sin(rad);
+  const PI_sub = "3.1415";
+
+  function checkSign(x) {
+    if (x.toString().includes(PI_sub)) {
+      x = Math.abs(x);
     }
-  
-    return checkSign(Math.atan2(...(dir === "X" ? [s, -c] : [-s, c])));
+    return x;
   }
+
+  return checkSign(Math.atan2(...(dir === "X" ? [s, -c] : [-s, c])));
+}
 
 /**
  * Takes parent data and returns a start value (radians),
@@ -393,75 +393,75 @@ function reflectAngle(rad, dir) {
  * arc from
  */
 
-function getArcs(pd) {
-    // must return start of arc and end
-    // these are pairs of edges that have the same parent
-    // start is the min(angle) of the children and end is the max(angle)
-    // radius is the radius of the parent
-    // origin is 0, 0 
-  
-    var data = [];
-    var root = pd.map(d => d.parentId === null ? d.thisId : null).filter(d => d != null)[0];
-  
-  
-    // get the branchlength of the parentID
-    function sisterAngle(current_parentId) {
-      for (var i = 0; i < pd.length; i++) {
-        if (pd[i].parentId === current_parentId) {
-          var sister_angle = pd[i].angle;
-        }
-      }
-      return sister_angle;
-    }
-  
-    function parentRadius(current_parentId) {
-      for (var i = 0; i < pd.length; i++) {
-        if (pd[i].thisId === current_parentId) {
-          var parent_r = pd[i].r;
-        }
-      }
-      return parent_r;
-    }
-  
-    for (let i = 0; i < pd.length; i++) {
-      if (pd[i].thisId !== root) {
-        data.push({
-          'start': reflectAngle(Math.max(pd[i].angle, sisterAngle(pd[i].parentId)), "Y"),
-          'end': reflectAngle(Math.min(pd[i].angle, sisterAngle(pd[i].parentId)), "Y"),
-          'radius': parentRadius(pd[i].parentId),
-          'thisId': pd[i].thisId,
-          'parentId': pd[i].parentId
-  
-        });
+function getArcs (pd) {
+  // must return start of arc and end
+  // these are pairs of edges that have the same parent
+  // start is the min(angle) of the children and end is the max(angle)
+  // radius is the radius of the parent
+  // origin is 0, 0 
+
+  var data = [];
+  var root = pd.map(d => d.parentId === null ? d.thisId : null).filter(d => d != null)[0];
+
+
+  // get the branchlength of the parentID
+  function sisterAngle(current_parentId) {
+    for (var i = 0; i < pd.length; i++) {
+      if (pd[i].parentId === current_parentId) {
+        var sister_angle = pd[i].angle;
       }
     }
-    //  TODO: understand why this works (and it may not in every case)... test!
-    for (let i = 0; i < data.length; i++) {
-      if (Math.sign(data[i].start) !== Math.sign(data[i].end)) {
-        data[i].end = Math.abs(data[i].end);
-        data[i].start = -Math.abs(data[i].start);
-      }
-    }
-  
-    return data.filter(d => d.start !== d.end & d.radius !== 0);
-  
+    return sister_angle;
   }
+
+  function parentRadius(current_parentId) {
+    for (var i = 0; i < pd.length; i++) {
+      if (pd[i].thisId === current_parentId) {
+        var parent_r = pd[i].r;
+      }
+    }
+    return parent_r;
+  }
+
+  for (let i = 0; i < pd.length; i++) {
+    if (pd[i].thisId !== root) {
+      data.push({
+        'start': reflectAngle(Math.min(pd[i].angle, sisterAngle(pd[i].parentId)), "Y"),
+        'end': reflectAngle(Math.max(pd[i].angle, sisterAngle(pd[i].parentId)), "Y"),
+        'radius': parentRadius(pd[i].parentId),
+        'thisId': pd[i].thisId,
+        'parentId': pd[i].parentId
+
+      });
+    }
+  }
+  //  TODO: understand why this works (and it may not in every case)... test!
+  for (let i = 0; i < data.length; i++) {
+    if (Math.sign(data[i].start) !== Math.sign(data[i].end)) {
+      data[i].end = Math.abs(data[i].end);
+      data[i].start = -Math.abs(data[i].start);
+    }
+  }
+
+  return data.filter(d => d.start !== d.end & d.radius !== 0);
+
+}
 
 /**
  * Simple wrapper function for getting the data,
  * radii, and arcs.
  */
 
-function radialLayout(node) {
-    var data = {};
-  
-    // TODO: does radial_data need to be printed out?
-    data.data = radialData(node);
-    data.radii = getRadii(node);
-    data.arcs = getArcs(data.data);
-  
-    return data;
-  }
+function radialLayout (node) {
+  var data = {};
+
+  // TODO: does radial_data need to be printed out?
+  data.data = radialData(node);
+  data.radii = getRadii(node);
+  data.arcs = getArcs(data.data);
+
+  return data;
+}
 
 /**
  * Rectangle layout algorithm.
@@ -555,54 +555,54 @@ function getHorizontal (node) {
  * Get the vertical lines to draw.
  */
 
-function getVertical(node) {
-    var data = getHorizontal(node);
-  
-    // for the current iteration of the loop find the matching parentId
-    // then take the difference
-    function findPairs(current_node) {
-      for (var i = 0; i < data.length; i++) {
-        if (data[i].parentId === current_node.parentId) {
-          var height = Math.abs(data[i].y0 - current_node.y0);
-        }
-      }
-      return height;
-    }
-  
-    var verticals = [];
-    // find root
-    var root = data.map(d => d.parentId === null ? d.thisId : null).filter(d => d != null)[0];
-  
+function getVertical (node) {
+  var data = getHorizontal(node);
+
+  // for the current iteration of the loop find the matching parentId
+  // then take the difference
+  function findPairs(current_node) {
     for (var i = 0; i < data.length; i++) {
-      if (data[i].thisId !== root) {
-  
-        verticals.push({
-          'thisId': data[i].thisId,
-          'x0': data[i].x0,
-          'x1': data[i].x0, // x values remain constant
-          'y0': data[i].y0,
-          'y1': data[i].y0 + findPairs(data[i]),
-          'heights': findPairs(data[i])
-        });
-  
+      if (data[i].parentId === current_node.parentId) {
+        var height = Math.abs(data[i].y0 - current_node.y0);
       }
     }
-  
-    return verticals;
+    return height;
   }
+
+  var verticals = [];
+  // find root
+  var root = data.map(d => d.parentId === null ? d.thisId : null).filter(d => d != null)[0];
+
+  for (var i = 0; i < data.length; i++) {
+    if (data[i].thisId !== root) {
+
+      verticals.push({
+        'thisId': data[i].thisId,
+        'x0': data[i].x0,
+        'x1': data[i].x0, // x values remain constant
+        'y0': data[i].y0,
+        'y1': data[i].y0 + findPairs(data[i]),
+        'heights': findPairs(data[i])
+      });
+
+    }
+  }
+
+  return verticals;
+}
 
 /**
  * Simple wrapper for rectangle layout functions
  */
 
-function rectangleLayout(node) {
-    var data = {};
-  
-    data.data = getHorizontal(node); // horizontal_lines
-    data.vertical_lines = getVertical(node);
-  
-    return data;
-  }
+function rectangleLayout (node) {
+  var data = {};
+
+  data.data = getHorizontal(node); // horizontal_lines
+  data.vertical_lines = getVertical(node);
+
+  return data;
+}
 
 /**
  * Convert parsed Newick tree from fortify() into data frame of edges
@@ -610,55 +610,55 @@ function rectangleLayout(node) {
  * are the $edge slot. I think.
  */
 
-function edges(df, rectangular = false) {
-    var result = [],
-      parent;
-  
-    // make sure data frame is sorted
-    df.sort(function(a, b) {
-      return a.thisId - b.thisId;
-    });
-  
-    for (const row of df) {
-      if (row.parentId === null) {
-        continue; // skip the root
-      }
-      parent = df[row.parentId];
-      if (parent === null || parent === undefined) continue;
-  
-      if (rectangular) {
-        var pair1 = {
-          x1: row.x,
-          y1: row.y,
-          id1: row.thisId,
-          x2: parent.x,
-          y2: row.y,
-          id2: undefined
-        };
-        result.push(pair1);
-        var pair2 = {
-          x1: parent.x,
-          y1: row.y,
-          id1: undefined,
-          x2: parent.x,
-          y2: parent.y,
-          id2: row.parentId
-        };
-        result.push(pair2);
-      } else {
-        var pair3 = {
-          x1: row.x,
-          y1: row.y,
-          id1: row.thisId,
-          x2: parent.x,
-          y2: parent.y,
-          id2: row.parentId
-        };
-        result.push(pair3);
-      }
+function edges (df, rectangular = false) {
+  var result = [],
+    parent;
+
+  // make sure data frame is sorted
+  df.sort(function (a, b) {
+    return a.thisId - b.thisId;
+  });
+
+  for (const row of df) {
+    if (row.parentId === null) {
+      continue; // skip the root
     }
-    return result;
+    parent = df[row.parentId];
+    if (parent === null || parent === undefined) continue;
+
+    if (rectangular) {
+      var pair1 = {
+        x1: row.x,
+        y1: row.y,
+        id1: row.thisId,
+        x2: parent.x,
+        y2: row.y,
+        id2: undefined
+      };
+      result.push(pair1);
+      var pair2 = {
+        x1: parent.x,
+        y1: row.y,
+        id1: undefined,
+        x2: parent.x,
+        y2: parent.y,
+        id2: row.parentId
+      };
+      result.push(pair2);
+    } else {
+      var pair3 = {
+        x1: row.x,
+        y1: row.y,
+        id1: row.thisId,
+        x2: parent.x,
+        y2: parent.y,
+        id2: row.parentId
+      };
+      result.push(pair3);
+    }
   }
+  return result;
+}
 
 /**
  * Equal-angle layout algorithm for unrooted trees.
@@ -668,70 +668,70 @@ function edges(df, rectangular = false) {
  */
 
 function equalAngleLayout(node) {
-    if (node.parent === null) {
-      // node is root
-      node.start = 0.;  // guarantees no arcs overlap 0
-      node.end = 2.; // *pi
-      node.angle = 0.;  // irrelevant
-      node.ntips = numTips(node);
-      node.x = 0;
-      node.y = 0;
-    }
-  
-    var child, arc, lastStart = node.start;
-  
-    for (var i = 0; i < node.children.length; i++) {
-      // the child of the current node
-      child = node.children[i];
-      // the number of tips the child node has
-      child.ntips = numTips(child);
-  
-      // assign proportion of arc to this child
-      arc = (node.end - node.start) * child.ntips / node.ntips;
-      child.start = lastStart;
-      child.end = child.start + arc;
-  
-      // bisect the arc
-      child.angle = child.start + (child.end - child.start) / 2.;
-      lastStart = child.end;
-  
-      // map to coordinates
-      child.x = node.x + child.branchLength * Math.sin(child.angle * Math.PI);
-      child.y = node.y + child.branchLength * Math.cos(child.angle * Math.PI);
-  
-      // climb up
-      equalAngleLayout(child);
-    }
-    // had to add this!
-    return node;
+  if (node.parent === null) {
+    // node is root
+    node.start = 0.;  // guarantees no arcs overlap 0
+    node.end = 2.; // *pi
+    node.angle = 0.;  // irrelevant
+    node.ntips = numTips(node);
+    node.x = 0;
+    node.y = 0;
   }
+
+  var child, arc, lastStart = node.start;
+
+  for (var i = 0; i < node.children.length; i++) {
+    // the child of the current node
+    child = node.children[i];
+    // the number of tips the child node has
+    child.ntips = numTips(child);
+
+    // assign proportion of arc to this child
+    arc = (node.end - node.start) * child.ntips / node.ntips;
+    child.start = lastStart;
+    child.end = child.start + arc;
+
+    // bisect the arc
+    child.angle = child.start + (child.end - child.start) / 2.;
+    lastStart = child.end;
+
+    // map to coordinates
+    child.x = node.x + child.branchLength * Math.sin(child.angle * Math.PI);
+    child.y = node.y + child.branchLength * Math.cos(child.angle * Math.PI);
+
+    // climb up
+    equalAngleLayout(child);
+  }
+  // had to add this!
+  return node;
+}
 
 /**
  * Simple wrapper function for equalAngleLayout()
  */
 
-function unrooted(node) {
-    var data = {};
-    // use the Felsenstein equal angle layout algorithm
-    var eq = fortify(equalAngleLayout(node));
-    data.data = eq;
-    // make the edges dataset
-    data.edges = edges(eq);
-  
-    return data;
-  }
+function unrooted (node) {
+  var data = {};
+  // use the Felsenstein equal angle layout algorithm
+  var eq = fortify(equalAngleLayout(node));
+  data.data = eq;
+  // make the edges dataset
+  data.edges = edges(eq);
+
+  return data;
+}
 
 // find the x & y coordinates of the parental species
-function parentFisheye(d, data /* e.g. lwPhylo.unrooted.data */) {
-    for (let i = 0; i < data.length; i++) {
-      if (d.parentId === data[i].thisId) {
-        return {
-          px: data[i].fisheye.x,
-          py: data[i].fisheye.y
-        };
-      }
+function parentFisheye (d, data /* e.g. lwPhylo.unrooted.data */) {
+  for (let i = 0; i < data.length; i++) {
+    if (d.parentId === data[i].thisId) {
+      return {
+        px: data[i].fisheye.x,
+        py: data[i].fisheye.y
+      };
     }
   }
+}
 
 /**
  * Parse a Newick tree string into a doubly-linked
@@ -740,7 +740,7 @@ function parentFisheye(d, data /* e.g. lwPhylo.unrooted.data */) {
  * internal nodes).
  */
 
-function readTree(text) {
+function readTree (text) {
     // remove whitespace
     text = text.replace(/ \t/g, '');
 
@@ -812,11 +812,11 @@ function readTree(text) {
 * Subset a tree given a node - i.e. the node of interests and all the descendents
 */
 
-function subTree(tree, node) {
+function subTree (tree, node) {
     // Thanks Richard Challis!
     let fullTree = {};
     tree.data.forEach(obj => {
-        fullTree[obj.thisId] = {...obj};
+        fullTree[obj.thisId] = { ...obj };
     });
 
     let subTree = {};

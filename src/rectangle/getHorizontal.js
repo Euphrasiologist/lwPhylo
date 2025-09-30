@@ -6,85 +6,46 @@ import fortify from "../utils/fortify.js"
  * Attempted copy of .layout.rect() function here https://github.com/ArtPoon/ggfree/blob/master/R/tree.R
  */
 
-export default function (node) {
-  // phylodata layout...
-  var pd = fortify(node);
-  // set y to null... not needed here.
-  pd.map(d => d.y = null);
-  // where y corresponds to a tip, return tip number
-  // make y0 and y1 equal.
-  var tipID = 1;
-  for (let i = 0; i < pd.length; i++) {
-    if (pd[i].isTip === true) {
-      pd[i].y0 = tipID;
-      pd[i].y1 = tipID;
-      tipID += 1;
+export default function(node) {
+  const pd = fortify(node);
+
+  // Fast lookup from id -> pd index
+  const idIndex = new Map(pd.map((d, i) => [d.thisId, i]));
+
+  // 1) Leaf order from the INPUT TREE (respects your child order / ladderize)
+  const leafIds = [];
+  (function dfs(n) {
+    if (!n.children || n.children.length === 0) { leafIds.push(n.id); return; }
+    n.children.forEach(dfs);
+  })(node);
+
+  // Map each leaf id to a vertical slot (1..N)
+  const tipSlot = new Map(leafIds.map((id, i) => [id, i + 1]));
+
+  // 2) Set Y for tips directly from that order; compute Y for internal nodes via postorder
+  (function setY(n) {
+    const i = idIndex.get(n.id);
+    if (!n.children || n.children.length === 0) {
+      const y = tipSlot.get(n.id);
+      pd[i].y0 = y; pd[i].y1 = y;
+      return y;
     }
-  }
+    const ys = n.children.map(setY);
+    const y = mean(ys);
+    pd[i].y0 = y; pd[i].y1 = y;
+    return y;
+  })(node);
 
-  // probably incredibly inefficient for large trees.
-  // gets the y values of two child branches by looping through the whole tree...
-  function yVals(child_1, child_2) {
-    for (var i = 0; i < pd.length; i++) {
-      if (pd[i].thisId === child_1) {
-        var y1 = pd[i].y0;
-      }
-      if (pd[i].thisId === child_2) {
-        var y2 = pd[i].y0;
-      }
-    }
-    return mean(([y1, y2]))
-  }
+  // 3) Set X by accumulating branch lengths down the tree (no sorting-by-id needed)
+  (function setX(n, xParent) {
+    const i = idIndex.get(n.id);
+    const bl = pd[i].branchLength ?? 0;
+    const x0 = xParent ?? 0;
+    const x1 = x0 + bl;
+    pd[i].x0 = x0; pd[i].x1 = x1;
+    if (n.children && n.children.length) n.children.forEach(c => setX(c, x1));
+  })(node, 0);
 
-  // if the node is not a tip...
-  for (let i = 0; i < pd.length; i++) {
-    if (pd[i].isTip === false) {
-      // then y0 === y1 and is the mean of the parental nodes
-      pd[i].y0 = yVals(pd[i].children[0], pd[i].children[1]);
-      pd[i].y1 = yVals(pd[i].children[0], pd[i].children[1]);
-    }
-  }
-
-  // find root
-  var root = pd.map(d => d.parentId === null ? d.thisId : null).filter(d => d != null)[0];
-
-  // sort the data temporarily in decreasing parentId
-  pd.sort((a, b) => b.thisId - a.thisId);
-
-  // get the branchlength of the parentID
-  function getParentBranchLength(current_parentId) {
-    for (var i = 0; i < pd.length; i++) {
-      if (pd[i].thisId === current_parentId) {
-        var branchLength = pd[i].x1;
-      }
-    }
-    return branchLength;
-  }
-
-  // last loop...
-  // now get the x0 and x1 coordinates.
-  for (let i = 0; i < pd.length; i++) {
-    // special cases where parent is the root.
-    if (pd[i].parentId === root) {
-      // x0 = 0 and x1 is branch length
-      pd[i].x0 = 0;
-      pd[i].x1 = pd[i].branchLength;
-    } else {
-      // the x0 is that of the parent
-      var parent_branchLength = getParentBranchLength(pd[i].parentId);
-      pd[i].x0 = parent_branchLength;
-      // the x1 is the sum of parent and current branchlength
-      pd[i].x1 = parent_branchLength + pd[i].branchLength;
-    }
-  }
-
-  // return the original sorted data
-  pd.sort((a, b) => a.thisId - b.thisId);
-
-  // remove root?
-
-  // finally get rid of unwanted y, x and angle properties
-  /* eslint-disable no-unused-vars */
+  // Clean up and return
   return pd.map(({ y, x, angle, ...item }) => item);
-  /* eslint-enable no-unused-vars */
 }

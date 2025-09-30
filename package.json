@@ -16,7 +16,7 @@
   "scripts": {
     "pretest": "rollup -c",
     "test": "eslint src",
-    "prepublishOnly": "rm -rf dist && /Users/mb39/homebrew/bin/yarn test"
+    "prepublishOnly": "rm -rf dist && npm run test"
   },
   "repository": {
     "type": "git",

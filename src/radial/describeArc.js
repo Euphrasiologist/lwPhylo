@@ -1,28 +1,18 @@
-import polarToCartesian from "./polarToCartesian.js";
-
-/**
- * Describe an SVG arc path between two angles (radians).
- * Always draws the MINOR arc (≤ π). Angles are normalized to [0, 2π).
- */
-function normalize(theta) {
-  const t = theta % (2 * Math.PI);
-  return t < 0 ? t + 2 * Math.PI : t;
-}
+import polarToCartesian from "./polarToCartesian.js"
 
 export default function describeArc(cx, cy, radius, startAngle, endAngle) {
-  let a0 = normalize(startAngle);
-  let a1 = normalize(endAngle);
+  const TAU = Math.PI * 2;
+  const norm = (t) => ((t % TAU) + TAU) % TAU;
 
-  // Choose the minor arc direction
-  let diff = a1 - a0;
-  if (diff <= -Math.PI) diff += 2 * Math.PI;
-  else if (diff > Math.PI) diff -= 2 * Math.PI;
+  let a0 = norm(startAngle);
+  let a1 = norm(endAngle);
+  let delta = a1 - a0; if (delta < 0) delta += TAU;
 
-  const largeArcFlag = Math.abs(diff) > Math.PI ? 1 : 0; // for completeness (will be 0 with minor arc)
-  const sweepFlag = diff >= 0 ? 1 : 0;
+  const largeArcFlag = delta > Math.PI ? 1 : 0;
+  const sweepFlag = 0; // CCW after Y inversion
 
   const start = polarToCartesian(cx, cy, radius, a0);
-  const end = polarToCartesian(cx, cy, radius, a0 + diff);
+  const end   = polarToCartesian(cx, cy, radius, a1);
 
   return [
     "M", start.x, start.y,

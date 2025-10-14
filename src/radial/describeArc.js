@@ -6,10 +6,13 @@ export default function describeArc(cx, cy, radius, startAngle, endAngle) {
 
   let a0 = norm(startAngle);
   let a1 = norm(endAngle);
-  let delta = a1 - a0; if (delta < 0) delta += TAU;
+
+  // delta in the *clockwise* direction (increasing angle after Y inversion)
+  let delta = a1 - a0;
+  if (delta < 0) delta += TAU;
 
   const largeArcFlag = delta > Math.PI ? 1 : 0;
-  const sweepFlag = 0; // CCW after Y inversion
+  const sweepFlag = 1; // CLOCKWISE sweep to match getArcs' start→end
 
   const start = polarToCartesian(cx, cy, radius, a0);
   const end   = polarToCartesian(cx, cy, radius, a1);

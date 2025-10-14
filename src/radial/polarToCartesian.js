@@ -1,11 +1,9 @@
 /**
- * Convert polar co-ordinates to cartesian
- * https://stackoverflow.com/questions/5736398/how-to-calculate-the-svg-path-for-an-arc-of-a-circle
+ * Convert polar to Cartesian: angle in radians, 0 at +x, CCW positive.
  */
-
-export default function (centerX, centerY, radius, angleInRadians) {
+export default function polarToCartesian(cx, cy, r, angle) {
   return {
-    x: centerX + (radius * Math.cos(angleInRadians)),
-    y: centerY + (radius * Math.sin(angleInRadians))
+    x: cx + r * Math.cos(angle),
+    y: cy + r * Math.sin(angle)
   };
 }

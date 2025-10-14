@@ -1,61 +1,52 @@
-import reflectAngle from "./reflectAngle.js"
-
 /**
- * Takes parent data and returns a start value (radians),
- * end value (radians), and radius of circle to draw an 
- * arc from
+ * Build *per-edge* minor arcs for a radial tree.
+ * For each non-root node (child), we draw a small arc at the *parent's* radius
+ * from the parent's angle to the child's angle (minor arc ≤ π).
+ *
+ * Input: a "radialData" array with fields:
+ *   thisId, parentId, angle (radians), r (radius at this node)
+ *
+ * Output: [{ parentId, childId, radius, start, end }]
+ *   where start/end are angles (radians), radius is parent's r
  */
 
-export default function (pd) {
-  // must return start of arc and end
-  // these are pairs of edges that have the same parent
-  // start is the min(angle) of the children and end is the max(angle)
-  // radius is the radius of the parent
-  // origin is 0, 0 
-
-  var data = [];
-  var root = pd.map(d => d.parentId === null ? d.thisId : null).filter(d => d != null)[0];
-
-
-  // get the branchlength of the parentID
-  function sisterAngle(current_parentId) {
-    for (var i = 0; i < pd.length; i++) {
-      if (pd[i].parentId === current_parentId) {
-        var sister_angle = pd[i].angle;
-      }
-    }
-    return sister_angle;
-  }
-
-  function parentRadius(current_parentId) {
-    for (var i = 0; i < pd.length; i++) {
-      if (pd[i].thisId === current_parentId) {
-        var parent_r = pd[i].r;
-      }
-    }
-    return parent_r;
-  }
-
-  for (let i = 0; i < pd.length; i++) {
-    if (pd[i].thisId !== root) {
-      data.push({
-        'start': reflectAngle(Math.min(pd[i].angle, sisterAngle(pd[i].parentId)), "Y"),
-        'end': reflectAngle(Math.max(pd[i].angle, sisterAngle(pd[i].parentId)), "Y"),
-        'radius': parentRadius(pd[i].parentId),
-        'thisId': pd[i].thisId,
-        'parentId': pd[i].parentId
-
-      })
-    }
-  }
-  //  TODO: understand why this works (and it may not in every case)... test!
-  for (let i = 0; i < data.length; i++) {
-    if (Math.sign(data[i].start) !== Math.sign(data[i].end)) {
-      data[i].end = Math.abs(data[i].end);
-      data[i].start = -Math.abs(data[i].start);
-    }
-  }
-
-  return data.filter(d => d.start !== d.end & d.radius !== 0);
-
+function normalize(theta) {
+  const t = theta % (2 * Math.PI);
+  return t < 0 ? t + 2 * Math.PI : t;
 }
+
+function minorArc(a, b) {
+  // returns [start, end] representing the minor arc from a -> b
+  a = normalize(a); b = normalize(b);
+  let diff = b - a;
+  if (diff <= -Math.PI) diff += 2 * Math.PI;
+  else if (diff > Math.PI) diff -= 2 * Math.PI;
+  return [a, a + diff]; // draw from a to a+diff
+}
+
+export default function getArcs(pd) {
+  const byId = new Map(pd.map(d => [d.thisId, d]));
+  // Find root thisId
+  const root = pd.find(d => d.parentId == null)?.thisId;
+
+  const arcs = [];
+  for (const d of pd) {
+    if (d.thisId === root) continue;
+    const parent = byId.get(d.parentId);
+    if (!parent) continue;
+
+    // minor arc from parent.angle -> child.angle at radius parent.r
+    const [start, end] = minorArc(parent.angle, d.angle);
+
+    if (!isFinite(parent.r) || parent.r === 0 || start === end) continue;
+    arcs.push({
+      parentId: parent.thisId,
+      childId: d.thisId,
+      radius: parent.r,
+      start,
+      end
+    });
+  }
+  return arcs;
+}
+

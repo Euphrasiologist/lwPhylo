@@ -1,6 +1,6 @@
 import getHorizontal from "./getHorizontal.js"
 
-export default function (node) {
+export default function getVertical(node) {
   const data = getHorizontal(node);
 
   // Group rows by parentId (children that share a parent)
@@ -33,3 +33,4 @@ export default function (node) {
 
   return verticals;
 }
+

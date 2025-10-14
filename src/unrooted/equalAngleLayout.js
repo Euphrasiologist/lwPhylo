@@ -1,49 +1,60 @@
 import numTips from "../utils/numTips.js"
 
 /**
- * Equal-angle layout algorithm for unrooted trees.
- * Populates the nodes of a tree object with information on
- * the angles to draw branches such that they do not
- * intersect.
+ * Equal-angle layout for unrooted trees.
+ * - Precomputes ntips in O(n) to avoid repeated subtree counts
+ * - Uses angles in "π units" (0..2) to match existing API
+ * - Populates x,y positions from branchLength and angle
  */
+
+function annotateTipCounts(root) {
+  (function post(n) {
+    if (!n.children || n.children.length === 0) {
+      n.ntips = 1; return 1;
+    }
+    let sum = 0;
+    for (const c of n.children) sum += post(c);
+    n.ntips = sum;
+    return sum;
+  })(root);
+  return root;
+}
 
 function equalAngleLayout(node) {
   if (node.parent === null) {
-    // node is root
-    node.start = 0.;  // guarantees no arcs overlap 0
-    node.end = 2.; // *pi
-    node.angle = 0.;  // irrelevant
-    node.ntips = numTips(node);
+    annotateTipCounts(node);
+    node.start = 0.;     // guarantees no arcs overlap 0
+    node.end = 2.;       // *π
+    node.angle = 0.;     // irrelevant at root
+    node.ntips = numTips(node); // safe (already computed), left for compatibility
     node.x = 0;
     node.y = 0;
   }
 
-  var child, arc, lastStart = node.start;
+  let lastStart = node.start;
 
-  for (var i = 0; i < node.children.length; i++) {
-    // the child of the current node
-    child = node.children[i];
-    // the number of tips the child node has
-    child.ntips = numTips(child);
+  for (let i = 0; i < node.children.length; i++) {
+    const child = node.children[i];
+    const arc = (node.end - node.start) * (child.ntips / node.ntips);
 
-    // assign proportion of arc to this child
-    arc = (node.end - node.start) * child.ntips / node.ntips;
     child.start = lastStart;
-    child.end = child.start + arc;
+    child.end = lastStart + arc;
 
-    // bisect the arc
+    // bisect the arc in π-units
     child.angle = child.start + (child.end - child.start) / 2.;
     lastStart = child.end;
 
-    // map to coordinates
-    child.x = node.x + child.branchLength * Math.sin(child.angle * Math.PI);
-    child.y = node.y + child.branchLength * Math.cos(child.angle * Math.PI);
+    // map to coordinates (convert π-units to radians by multiplying by Math.PI)
+    const theta = child.angle * Math.PI;
+    const bl = (child.branchLength ?? 0);
+    child.x = node.x + bl * Math.sin(theta);
+    child.y = node.y + bl * Math.cos(theta);
 
-    // climb up
     equalAngleLayout(child);
   }
-  // had to add this!
+
   return node;
 }
 
 export default equalAngleLayout
+

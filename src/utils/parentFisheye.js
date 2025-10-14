@@ -1,11 +1,9 @@
-// find the x & y coordinates of the parental species
-export default function (d, data /* e.g. lwPhylo.unrooted.data */) {
-  for (let i = 0; i < data.length; i++) {
-    if (d.parentId === data[i].thisId) {
-      return {
-        px: data[i].fisheye.x,
-        py: data[i].fisheye.y
-      };
-    }
-  }
+export function makeIndexById(rows, key = "thisId") {
+  return new Map(rows.map(d => [d[key], d]));
 }
+export default function parentFisheye(d, data) {
+  const byId = makeIndexById(data);
+  const parent = byId.get(d.parentId);
+  return parent ? { px: parent.fisheye.x, py: parent.fisheye.y } : null;
+}
+

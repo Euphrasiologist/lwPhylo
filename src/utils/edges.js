@@ -4,52 +4,23 @@
  * are the $edge slot. I think.
  */
 
-export default function (df, rectangular = false) {
-  var result = [],
-    parent
+export default function edges(df, rectangular = false) {
+  const rows = [...df].sort((a, b) => a.thisId - b.thisId);
+  const byId = new Map(rows.map((r) => [r.thisId, r]));
+  const result = [];
 
-  // make sure data frame is sorted
-  df.sort(function (a, b) {
-    return a.thisId - b.thisId;
-  });
-
-  for (const row of df) {
-    if (row.parentId === null) {
-      continue; // skip the root
-    }
-    parent = df[row.parentId];
-    if (parent === null || parent === undefined) continue;
+  for (const row of rows) {
+    if (row.parentId == null) continue;
+    const parent = byId.get(row.parentId);
+    if (!parent) continue;
 
     if (rectangular) {
-      var pair1 = {
-        x1: row.x,
-        y1: row.y,
-        id1: row.thisId,
-        x2: parent.x,
-        y2: row.y,
-        id2: undefined
-      };
-      result.push(pair1);
-      var pair2 = {
-        x1: parent.x,
-        y1: row.y,
-        id1: undefined,
-        x2: parent.x,
-        y2: parent.y,
-        id2: row.parentId
-      };
-      result.push(pair2);
+      result.push({ x1: row.x, y1: row.y, id1: row.thisId, x2: parent.x, y2: row.y, id2: undefined });
+      result.push({ x1: parent.x, y1: row.y, id1: undefined, x2: parent.x, y2: parent.y, id2: row.parentId });
     } else {
-      var pair3 = {
-        x1: row.x,
-        y1: row.y,
-        id1: row.thisId,
-        x2: parent.x,
-        y2: parent.y,
-        id2: row.parentId
-      };
-      result.push(pair3);
+      result.push({ x1: row.x, y1: row.y, id1: row.thisId, x2: parent.x, y2: parent.y, id2: row.parentId });
     }
   }
   return result;
 }
+

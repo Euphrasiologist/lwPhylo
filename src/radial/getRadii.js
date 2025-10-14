@@ -1,43 +1,37 @@
-import radialData from "./radialData.js"
+import radialData from "./radialData.js";
 
 /**
- * Take a parsed tree and get the radii of each of the nodes.
+ * Per-edge radial segments (for highlighting and drawing).
+ * For each non-root node, draw a radial line from the parent radius to the child radius
+ * at the CHILD'S angle.
+ *
+ * Output: [{ parentId, childId, x0, y0, x1, y1, isTip }]
  */
+export default function getRadii(node) {
+  const data = radialData(node);
+  const byId = new Map(data.map(d => [d.thisId, d]));
+  const root = data.find(d => d.parentId == null)?.thisId;
 
-export default function (node) {
-  var data = radialData(node);
+  const segments = [];
+  for (const d of data) {
+    if (d.thisId === root) continue;
+    const parent = byId.get(d.parentId);
+    if (!parent) continue;
 
-  // for the current iteration of the loop find the matching parentId
-  function getRadius(current_node) {
-    for (var i = 0; i < data.length; i++) {
-      if (data[i].thisId === current_node.parentId) {
-        var radius = data[i].r;
-      }
-    }
-    return radius;
+    const theta = d.angle;
+    const r0 = parent.r;
+    const r1 = d.r;
+
+    segments.push({
+      parentId: parent.thisId,
+      childId: d.thisId,
+      x0: r0 * Math.cos(theta),
+      y0: r0 * Math.sin(theta),
+      x1: r1 * Math.cos(theta),
+      y1: r1 * Math.sin(theta),
+      isTip: !!d.isTip
+    });
   }
-
-  var arcs = [];
-  // find root
-  var root = data.map(d => d.parentId === null ? d.thisId : null).filter(d => d != null)[0];
-
-  for (var i = 0; i < data.length; i++) {
-    if (data[i].thisId !== root) {
-
-      arcs.push({
-        'thisId': data[i].thisId,
-        'thisLabel': data[i].thisLabel,
-        'x0': data[i].x,
-        // radius of the parent * cos(angle)
-        'x1': getRadius(data[i]) * Math.cos(data[i].angle),
-        'y0': data[i].y,
-        // radius of the parent * sin(angle)
-        'y1': getRadius(data[i]) * Math.sin(data[i].angle),
-        'isTip': data[i].isTip
-      })
-    }
-  }
-
-  return arcs;
-
+  return segments;
 }
+

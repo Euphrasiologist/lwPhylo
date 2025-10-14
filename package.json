@@ -33,9 +33,11 @@
   },
   "homepage": "https://github.com/Euphrasiologist/lwPhylo#readme",
   "devDependencies": {
-    "eslint": "6",
+    "@rollup/plugin-commonjs": "^28.0.6",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "eslint": "^9.37.0",
     "jsdom": "27",
-    "rollup": "1",
-    "rollup-plugin-terser": "5"
+    "rollup": "^4.52.4"
   }
 }

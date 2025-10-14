@@ -15,18 +15,17 @@ export default function radialData(node) {
 
   const pd = fortify(node, /*sort*/ true);
   const byId = new Map(pd.map(d => [d.thisId, d]));
-
-  // Build children list by ids (from fortified "children")
   const kids = new Map(pd.map(d => [d.thisId, d.children || []]));
 
   // Find root id
   let root = null;
-  for (const d of pd) if (d.parentId == null) { root = d.thisId; break; }
+  for (const d of pd) {
+    if (d.parentId == null) { root = d.thisId; break; }
+  }
 
   // Collect tip ids in DFS left->right order to preserve input ordering
   const tipIds = [];
   (function dfs(id) {
-    const row = byId.get(id);
     const c = kids.get(id) || [];
     if (c.length === 0) {
       tipIds.push(id);
@@ -42,8 +41,7 @@ export default function radialData(node) {
     angle.set(id, (i / N) * TAU);
   });
 
-  // Internal node angles: circular mean of child angles
-  // Do a post-order traversal to ensure children are set first.
+  // Internal node angles: circular mean of child angles (post-order)
   (function setInternalAngles(id) {
     const c = kids.get(id) || [];
     for (const ch of c) setInternalAngles(ch);
@@ -75,7 +73,7 @@ export default function radialData(node) {
   // Enrich pd rows with angle, r, x, y
   for (const d of pd) {
     const th = angle.get(d.thisId) ?? 0;
-    const r = radius.get(d.thisId) ?? 0;
+    const r  = radius.get(d.thisId) ?? 0;
     d.angle = th;
     d.r = r;
     d.x = r * Math.cos(th);
@@ -84,4 +82,3 @@ export default function radialData(node) {
 
   return pd;
 }
-

@@ -48,7 +48,10 @@ export default function getHorizontal(node) {
     if (n.children && n.children.length) n.children.forEach(c => setX(c, x1));
   })(node, 0);
 
-  // Clean up and return only what we need (keep ids/labels/parent linkage)
-  return pd.map(({ y, x, angle, ...item }) => item);
+  // Clean up: remove fields not needed downstream without triggering no-unused-vars
+  return pd.map((row) => {
+    const { y: _y, x: _x, angle: _angle, ...item } = row;
+    return item;
+  });
 }
 

@@ -6,4 +6,4 @@ export { default as unrooted } from "./unrooted/unrooted.js"
 export { default as parentFisheye } from "./utils/parentFisheye.js"
 export { default as readTree } from "./utils/readTree.js"
 export { default as subTree } from "./utils/subTree.js"
-
+export { default as drawPhylogeny } from "./plot/drawPhylogeny.js"; 

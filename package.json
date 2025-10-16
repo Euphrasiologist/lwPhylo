@@ -1,22 +1,35 @@
 {
   "name": "@euphrasiologist/lwphylo",
-  "version": "1.1.15",
+  "version": "1.2.0",
   "description": "A lightweight, low level javascript library to plot phylogenies from Newick files.",
-  "main": "dist/@euphrasiologist/lwphylo.js",
-  "unpkg": "dist/@euphrasiologist/lwphylo.min.js",
-  "jsdelivr": "dist/@euphrasiologist/lwphylo.min.js",
-  "module": "src/index.js",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./draw": {
+      "import": "./dist/drawPhylogeny.esm.js",
+      "require": "./dist/drawPhylogeny.cjs",
+      "default": "./dist/drawPhylogeny.umd.js"
+    }
+  },
+  "browser": "dist/drawPhylogeny.umd.js",
+  "unpkg": "dist/drawPhylogeny.umd.js",
+  "jsdelivr": "dist/drawPhylogeny.umd.js",
+  "sideEffects": false,
   "directories": {
     "example": "examples"
   },
   "files": [
-    "dist/**/*.js",
-    "src/**/*.js"
+    "dist/**/*"
   ],
   "scripts": {
-    "pretest": "rollup -c",
-    "test": "eslint src",
-    "prepublishOnly": "rm -rf dist && npm run test"
+    "build": "rollup -c",
+    "lint": "eslint src",
+    "prepublishOnly": "rm -rf dist && npm run build && npm run lint"
   },
   "repository": {
     "type": "git",
@@ -24,7 +37,10 @@
   },
   "keywords": [
     "phylogeny",
-    "visualisation"
+    "visualisation",
+    "newick",
+    "d3",
+    "phylogenetics"
   ],
   "author": "Max Brown",
   "license": "ISC",
@@ -32,6 +48,9 @@
     "url": "https://github.com/Euphrasiologist/lwPhylo/issues"
   },
   "homepage": "https://github.com/Euphrasiologist/lwPhylo#readme",
+  "peerDependencies": {
+    "d3": "^7 || ^8"
+  },
   "devDependencies": {
     "@eslint/js": "^9.37.0",
     "@rollup/plugin-commonjs": "^28.0.6",
@@ -41,5 +60,8 @@
     "globals": "^16.4.0",
     "jsdom": "27",
     "rollup": "^4.52.4"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

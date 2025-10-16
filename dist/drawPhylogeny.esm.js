@@ -1,138 +1,4 @@
-'use strict';
-
-var d3 = require('d3');
-
-function _interopNamespaceDefault(e) {
-  var n = Object.create(null);
-  if (e) {
-    Object.keys(e).forEach(function (k) {
-      if (k !== 'default') {
-        var d = Object.getOwnPropertyDescriptor(e, k);
-        Object.defineProperty(n, k, d.get ? d : {
-          enumerable: true,
-          get: function () { return e[k]; }
-        });
-      }
-    });
-  }
-  n.default = e;
-  return Object.freeze(n);
-}
-
-var d3__namespace = /*#__PURE__*/_interopNamespaceDefault(d3);
-
-// Based on the archived d3 fisheye plugin, modernized & hardened.
-// - Works in screen/pixel space (set xscale/yscale).
-// - O(1) math with precomputed constants; avoids unnecessary sqrt.
-// - Stable API: .radius(), .distortion(), .focus(), .scales()
-// - Returns { x, y, z } where z ~= local magnification (clamped).
-// - Adds small ergonomics: .setScales(), .focusFromEvent(), .clampZ()
-
-const phisheye = {
-  circular: () => {
-    let radius = 200;        // pixels
-    let distortion = 2;      // dimensionless
-    let focus = [0, 0];      // [fx, fy] in pixels
-    let scales = {};         // { xscale, yscale }
-    let k0 = 0, k1 = 0;      // precomputed factors
-    let radius2 = radius * radius;
-    let zClamp = 10;         // max z (magnification) for stability
-
-    function ensureScales() {
-      if (!scales || typeof scales.xscale !== "function" || typeof scales.yscale !== "function") {
-        throw new Error("phisheye.circular: call .scales(xscale, yscale) before using the fisheye.");
-      }
-    }
-
-    function rescale() {
-      // Same functional form as the classic plugin:
-      // k = ((e^d) / (e^d - 1)) * R * (1 - exp(-d * r / R)) / r
-      // where d=distortion, R=radius, r=distance to focus.
-      const e = Math.exp(distortion);
-      k0 = (e / (e - 1)) * radius;  // constant multiplier
-      k1 = distortion / radius;     // exponent scale
-      radius2 = radius * radius;
-      return fisheye;
-    }
-
-    function fisheye(d) {
-      ensureScales();
-
-      const x0 = scales.xscale(d.x);
-      const y0 = scales.yscale(d.y);
-
-      const dx = x0 - focus[0];
-      const dy = y0 - focus[1];
-      const dd2 = dx * dx + dy * dy;
-
-      // At the focus or outside radius -> identity mapping, z ~ 1
-      if (dd2 === 0 || dd2 >= radius2) {
-        return { x: x0, y: y0, z: dd2 >= radius2 ? 1 : zClamp };
-      }
-
-      const dd = Math.sqrt(dd2);
-      // Classic mapping (with a slight blend for gentler core)
-      const k = ((k0 * (1 - Math.exp(-dd * k1))) / dd) * 0.75 + 0.25;
-
-      // New position
-      const x = focus[0] + dx * k;
-      const y = focus[1] + dy * k;
-
-      // Local magnification proxy (clamped)
-      const z = Math.min(k, zClamp);
-
-      return { x, y, z };
-    }
-
-    // --- Public API ---
-
-    fisheye.radius = function(_) {
-      if (!arguments.length) return radius;
-      radius = Math.max(0, +_);
-      return rescale();
-    };
-
-    fisheye.distortion = function(_) {
-      if (!arguments.length) return distortion;
-      distortion = Math.max(0, +_);
-      return rescale();
-    };
-
-    fisheye.focus = function(_) {
-      if (!arguments.length) return focus.slice();
-      if (!Array.isArray(_) || _.length !== 2) throw new Error("focus expects [x, y] in pixels.");
-      focus = [+_[0], +_[1]];
-      return fisheye;
-    };
-
-    fisheye.scales = function(xscale, yscale) {
-      if (!arguments.length) return scales;
-      scales = { xscale, yscale };
-      return fisheye;
-    };
-
-    // Convenience alias
-    fisheye.setScales = fisheye.scales;
-
-    // Clamp maximum z (magnification) returned; defaults to 10
-    fisheye.clampZ = function(_) {
-      if (!arguments.length) return zClamp;
-      zClamp = Math.max(1, +_);
-      return fisheye;
-    };
-
-    // Convenience: set focus from a pointer event relative to an HTMLElement/SVG
-    // Example: svg.on("pointermove", (e) => fe.focusFromEvent(e, svg.node()))
-    fisheye.focusFromEvent = function(event, element) {
-      const rect = element.getBoundingClientRect();
-      const fx = event.clientX - rect.left;
-      const fy = event.clientY - rect.top;
-      return fisheye.focus([fx, fy]);
-    };
-
-    return rescale();
-  }
-};
+import * as d3 from 'd3';
 
 // src/radial/polarToCartesian.js
 function polarToCartesian (cx, cy, r, t) {
@@ -739,15 +605,6 @@ function unrooted (node) {
   return data;
 }
 
-function makeIndexById(rows, key = "thisId") {
-  return new Map(rows.map(d => [d[key], d]));
-}
-function parentFisheye(d, data) {
-  const byId = makeIndexById(data);
-  const parent = byId.get(d.parentId);
-  return parent ? { px: parent.fisheye.x, py: parent.fisheye.y } : null;
-}
-
 /**
  * Parse a Newick tree string into a doubly-linked list of JS Objects.
  * Assigns labels, branch lengths, and node IDs (tips before internals if input emits them that way).
@@ -812,51 +669,6 @@ function readTree(text) {
   return root;
 }
 
-/** 
-* Subset a tree given a node - i.e. the node of interests and all the descendents
-*/
-
-function subTree (tree, node) {
-    // Thanks Richard Challis!
-    let fullTree = {};
-    tree.data.forEach(obj => {
-        fullTree[obj.thisId] = { ...obj };
-    });
-
-    let subTree = {};
-    const getDescendants = function (rootNodeId) {
-        if (fullTree[rootNodeId]) {
-            subTree[rootNodeId] = fullTree[rootNodeId];
-            if (fullTree[rootNodeId].children) {
-                fullTree[rootNodeId].children.forEach(childNodeId => {
-                    getDescendants(childNodeId);
-                });
-            }
-        }
-    };
-    // call the recursive function
-    getDescendants(node);
-
-    // in each of the functions, data contains the children key
-    const data = [["data", Object.values(subTree)]];
-
-    const nodes = data[0][1].map(d => d.thisId);
-
-    var res = [];
-    // in all keys except data, push to new array
-    for (const node in tree) {
-        if (node === "data") continue;
-        res.push([node, tree[node]]);
-    }
-
-    var filtered = res.map(d => [
-        d[0],
-        d[1].filter(d => nodes.includes(d.thisId))
-    ]);
-
-    return Object.fromEntries(data.concat(filtered));
-}
-
 function drawPhylogeny(
   treeText,
   {
@@ -876,21 +688,21 @@ function drawPhylogeny(
     const vertical = tree_df.vertical_lines;
     const tips = horizontal.filter((d) => d.isTip);
 
-    const maxY = d3__namespace.max(horizontal, (d) => d.y1);
-    const minY = d3__namespace.min(horizontal, (d) => d.y1);
-    const maxX = d3__namespace.max(horizontal, (d) => d.x1);
+    const maxY = d3.max(horizontal, (d) => d.y1);
+    const minY = d3.min(horizontal, (d) => d.y1);
+    const maxX = d3.max(horizontal, (d) => d.x1);
 
-    const yScale = d3__namespace
+    const yScale = d3
       .scaleLinear()
       .domain([minY - 1, maxY + 1])
       .range([margin.top, height - margin.bottom]);
 
-    const xScale = d3__namespace
+    const xScale = d3
       .scaleLinear()
       .domain([0, maxX])
       .range([margin.left, width - margin.right]);
 
-    const svg = d3__namespace
+    const svg = d3
       .create("svg")
       .attr("width", width)
       .attr("height", height)
@@ -955,18 +767,18 @@ function drawPhylogeny(
     const END_CAP = 0;
 
     // ===== SCALES / BOUNDS =====
-    const maxRadius = d3__namespace.max(rad.data, (d) => d.r) ?? 0;
+    const maxRadius = d3.max(rad.data, (d) => d.r) ?? 0;
     const scaleRadial = maxRadius + 2 * radialMargin;
     const w = width,
       h = height;
     const centerX = w / 2,
       centerY = h / 2;
 
-    const xScaleRadial = d3__namespace
+    const xScaleRadial = d3
       .scaleLinear()
       .domain([-scaleRadial, scaleRadial])
       .range([0, w]);
-    const yScaleRadial = d3__namespace
+    const yScaleRadial = d3
       .scaleLinear()
       .domain([-scaleRadial, scaleRadial])
       .range([h, 0]);
@@ -975,7 +787,7 @@ function drawPhylogeny(
     // ===== INDEXES / HELPERS =====
     const byId = new Map(rad.data.map((d) => [d.thisId, d]));
     const tips = rad.data.filter((d) => d.isTip);
-    const tipMaxR = tips.length ? d3__namespace.max(tips, (d) => d.r) : 0;
+    const tipMaxR = tips.length ? d3.max(tips, (d) => d.r) : 0;
 
     // Robust child-id extractor (handles multiple shapes)
     function childIdOf(spoke) {
@@ -997,7 +809,7 @@ function drawPhylogeny(
     }
 
     // ===== SVG ROOT =====
-    const svg = d3__namespace
+    const svg = d3
       .create("svg")
       .attr("width", w)
       .attr("height", h)
@@ -1057,7 +869,7 @@ function drawPhylogeny(
         // Shorten in screen space so the spoke doesn’t pierce the dot (END_CAP can be 0)
         const { X0, Y0, X1s, Y1s} = shortenSpokePx(x0, y0, x1, y1);
 
-        d3__namespace.select(this)
+        d3.select(this)
           .attr("x1", X0)
           .attr("y1", Y0)
           .attr("x2", X1s)
@@ -1078,7 +890,7 @@ function drawPhylogeny(
         const x = isOuter ? tipMaxR * Math.cos(d.angle) : d.x;
         const y = isOuter ? tipMaxR * Math.sin(d.angle) : d.y;
 
-        d3__namespace.select(this)
+        d3.select(this)
           .attr("cx", xScaleRadial(x))
           .attr("cy", yScaleRadial(y))
           .attr("r", DOT_R)
@@ -1115,7 +927,7 @@ function drawPhylogeny(
           xoff *= -1;
           anchor = "end";
         }
-        d3__namespace.select(this)
+        d3.select(this)
           .append("g")
           .attr("transform", `rotate(${angle})`)
           .append("text")
@@ -1137,8 +949,8 @@ function drawPhylogeny(
     const h = height;
 
     // Get spatial extent
-    const xExtent = d3__namespace.extent(unrootedPhylo.data, (d) => d.x);
-    const yExtent = d3__namespace.extent(unrootedPhylo.data, (d) => d.y);
+    const xExtent = d3.extent(unrootedPhylo.data, (d) => d.x);
+    const yExtent = d3.extent(unrootedPhylo.data, (d) => d.y);
 
     // Find maximum absolute distance from center (0,0)
     const maxX = Math.max(Math.abs(xExtent[0]), Math.abs(xExtent[1]));
@@ -1148,17 +960,17 @@ function drawPhylogeny(
     // Add some margin
     const scaleUnroot = maxRadius + 2 * radialMargin;
 
-    const xScaleUnroot = d3__namespace
+    const xScaleUnroot = d3
       .scaleLinear()
       .domain([-scaleUnroot, scaleUnroot])
       .range([0, w]);
 
-    const yScaleUnroot = d3__namespace
+    const yScaleUnroot = d3
       .scaleLinear()
       .domain([-scaleUnroot, scaleUnroot])
       .range([h, 0]);
 
-    const svg = d3__namespace
+    const svg = d3
       .create("svg")
       .attr("width", w)
       .attr("height", h)
@@ -1249,7 +1061,7 @@ function drawPhylogeny(
         }
 
         // Draw label rotated along branch direction
-        d3__namespace.select(this)
+        d3.select(this)
           .append("g")
           .attr("transform", `rotate(${angle})`)
           .append("text")
@@ -1267,13 +1079,5 @@ function drawPhylogeny(
   }
 }
 
-exports.describeArc = describeArc;
-exports.drawPhylogeny = drawPhylogeny;
-exports.parentFisheye = parentFisheye;
-exports.phisheye = phisheye;
-exports.radialLayout = radialLayout;
-exports.readTree = readTree;
-exports.rectangleLayout = rectangleLayout;
-exports.subTree = subTree;
-exports.unrooted = unrooted;
-//# sourceMappingURL=index.cjs.map
+export { drawPhylogeny as default };
+//# sourceMappingURL=drawPhylogeny.esm.js.map

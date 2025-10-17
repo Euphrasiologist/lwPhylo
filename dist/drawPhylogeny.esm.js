@@ -283,16 +283,49 @@ function getArcs(pd) {
 }
 
 /**
+ * Per-child "half" arcs for radial trees.
+ *
+ * For each non-root node (child), emit an arc at the PARENT's radius that
+ * spans between the parent's angle and the child's angle. This is the arc
+ * segment that meets the child's spoke and is ideal for root→tip highlighting.
+ *
+ * Input:  pd — the array returned by radialData(node) (each row has .thisId, .parentId, .angle, .r)
+ * Output: [{ parentId, childId, radius, start, end }]
+ */
+function getChildArcs(pd) {
+  const byId = new Map(pd.map(d => [d.thisId, d]));
+  const arcs = [];
+
+  for (const child of pd) {
+    if (child.parentId == null) continue; // skip root
+    const parent = byId.get(child.parentId);
+    if (!parent) continue;
+
+    arcs.push({
+      parentId: parent.thisId,
+      childId: child.thisId,
+      radius: parent.r,        // draw on the parent's circle
+      start: parent.angle,     // start at parent's angle
+      end: child.angle         // end at child's angle (describeArc will choose the shortest CCW span)
+    });
+  }
+
+  return arcs;
+}
+
+/**
  * Simple wrapper for radial layout:
  *  - data: per-node { angle, r, x, y, ... }
  *  - radii: per-edge radial spokes (parent.r → child.r)
- *  - arcs: per-internal-node arcs spanning its children at parent radius
+ *  - arcs: per-parent arcs spanning all children at parent's radius
+ *  - child_arcs: per-child half-arcs (parent.angle → child.angle) at parent's radius
  */
 function radialLayout(node) {
   const data = {};
   data.data = radialData(node);
   data.radii = getRadii(node);
   data.arcs = getArcs(data.data);
+  data.child_arcs = getChildArcs(data.data);
   return data;
 }
 
@@ -758,7 +791,7 @@ function drawPhylogeny(
     const parsedTree = readTree(treeText);
     const rad = radialLayout(parsedTree);
 
-    // ===== MODE / DEBUG =====
+    // ===== MODE =====
     const TIP_MODE = radialMode; // "align" (shorten to original tips) or "outer" (project to one circle)
     const isOuter = TIP_MODE === "outer";
 

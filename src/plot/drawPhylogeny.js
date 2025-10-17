@@ -94,9 +94,12 @@ export default function drawPhylogeny(
     const parsedTree = lw.readTree(treeText);
     const rad = lw.radialLayout(parsedTree);
 
-    // ===== MODE / DEBUG =====
+    // ===== MODE =====
     const TIP_MODE = radialMode; // "align" (shorten to original tips) or "outer" (project to one circle)
     const isOuter = TIP_MODE === "outer";
+    if (TIP_MODE != "phylo" || TIP_MODE != "outer") {
+      new Error("radialMode can be only either 'outer' to align tips around the circumference, or 'phylo' which shows terminal branch lengths");
+    }
 
     // visuals (0 = let spokes reach the dots)
     const DOT_R = 3;

@@ -884,7 +884,6 @@ function drawPhylogeny(
         if (isOuter && isTipSpoke) {
           x1 = tipMaxR * Math.cos(node.angle);
           y1 = tipMaxR * Math.sin(node.angle);
-          reason = "outer→projected tip";
         }
 
         // Shorten in screen space so the spoke doesn’t pierce the dot (END_CAP can be 0)

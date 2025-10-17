@@ -621,7 +621,7 @@ export default function drawPhylogeny(
     const tipByLabel = new Map(
       unrootedPhylo.data.filter((d) => d.isTip).map((d) => [d.thisLabel, d])
     );
-    const rootToTip = makeRootToTipGetter(byId, { prefer: "r" });
+    const rootToTip = makeRootToTipGetter(byId);
 
     if (showTooltips) {
       nodes

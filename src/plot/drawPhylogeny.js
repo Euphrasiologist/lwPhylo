@@ -25,20 +25,31 @@ export default function drawPhylogeny(
 
   // shared helpers
   const isNumber = (x) => typeof x === "number" && Number.isFinite(x);
-  function makeRootToTipGetter(byId) {
-    const memo = new Map();
-    return function rootToTip(id) {
-      if (memo.has(id)) return memo.get(id);
-      let cur = byId.get(id);
-      let sum = 0;
-      while (cur && cur.parentId != null) {
-        sum += +cur.branchLength || 0;
-        cur = byId.get(cur.parentId);
+  // Works for both radial (uses `r`) and rect (uses `x1`).
+  // Falls back to summing branchLength up to the root if neither is present.
+  function makeRootToTipGetter(byId, { prefer = "auto" } = {}) {
+    return function rootToTip(tipId) {
+      let n = byId.get(tipId);
+      if (!n) return 0;
+
+      // Prefer explicit cumulative fields if present
+      if (prefer === "r" || (prefer === "auto" && "r" in n)) {
+        return Number(n.r ?? 0);
       }
-      memo.set(id, sum);
+      if (prefer === "x1" || (prefer === "auto" && "x1" in n)) {
+        return Number(n.x1 ?? 0);
+      }
+
+      // Fallback: sum branchLength up the ancestry
+      let sum = 0;
+      while (n && n.parentId != null) {
+        sum += Number(n.branchLength || 0); // null/undefined → 0
+        n = byId.get(n.parentId);
+      }
       return sum;
     };
   }
+
 
   if (layout === "rect") {
     // RECTANGULAR LAYOUT
@@ -51,7 +62,7 @@ export default function drawPhylogeny(
     const byId = new Map(horizontal.map((d) => [d.thisId, d]));
     const tipById = new Map(tips.map((d) => [d.thisId, d]));
     const tipByLabel = new Map(tips.map((d) => [d.thisLabel, d]));
-    const rootToTip = makeRootToTipGetter(byId);
+    const rootToTip = makeRootToTipGetter(byId, { prefer: "x1" }); 
 
     const maxY = d3.max(horizontal, (d) => d.y1);
     const minY = d3.min(horizontal, (d) => d.y1);
@@ -252,7 +263,7 @@ export default function drawPhylogeny(
     const byId = new Map(rad.data.map((d) => [d.thisId, d]));
     const tips = rad.data.filter((d) => d.isTip);
     const tipMaxR = tips.length ? d3.max(tips, (d) => d.r) : 0;
-    const rootToTip = makeRootToTipGetter(byId);
+    const rootToTip = makeRootToTipGetter(byId, { prefer: "r" });
     const tipById = new Map(tips.map((d) => [d.thisId, d])); // HILITE:
     const tipByLabel = new Map(tips.map((d) => [d.thisLabel, d])); // HILITE:
 
@@ -610,7 +621,7 @@ export default function drawPhylogeny(
     const tipByLabel = new Map(
       unrootedPhylo.data.filter((d) => d.isTip).map((d) => [d.thisLabel, d])
     );
-    const rootToTip = makeRootToTipGetter(byId);
+    const rootToTip = makeRootToTipGetter(byId, { prefer: "r" });
 
     if (showTooltips) {
       nodes

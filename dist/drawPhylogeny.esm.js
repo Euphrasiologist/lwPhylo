@@ -544,9 +544,9 @@ function radialLayout(node, opts = {}) {
   // per-child arcs for half-arc highlighting if you already use them
   let child_arcs = [];
   if (opts.arcsStyle === "fan") {
-    child_arcs = getChildArcsFan(data);
+    child_arcs = getChildArcsFan(pd);
   } else {
-    child_arcs = getChildArcs(data);
+    child_arcs = getChildArcs(pd);
   }
 
   return { data: pd, radii, arcs, child_arcs };

@@ -1,41 +1,57 @@
-import radialData from "./radialData.js"
-import getRadii from "./getRadii.js"
-import getArcs from "./getArcs.js"
-import getChildArcs from "./getChildArcs.js"
+// src/radial/radialLayout.js
+import radialData from "./radialData.js";
+import getRadii from "./getRadii.js";
+import getRadiiFromPd from "./getRadiiFromPd.js";
+import getArcs from "./getArcs.js";            // your existing "shortest-arc"
+import getArcsFan from "./getArcsFan.js";      // new
 import fanAngles from "./fanAngles.js";
-import getArcsFan from "./getArcsFans.js";
-import fortify from "../utils/fortify.js"
+import getChildArcs from "./getChildArcs.js";  // optional existing helper
 
 /**
- * Simple wrapper for radial layout:
- *  - data: per-node { angle, r, x, y, ... }
- *  - radii: per-edge radial spokes (parent.r → child.r)
- *  - arcs: per-parent arcs spanning all children at parent's radius
- *  - child_arcs: per-child half-arcs (parent.angle → child.angle) at parent's radius
+ * radialLayout(node, opts?)
+ * opts:
+ *   - angleStrategy: "cmean" (default, your current) | "fan" (APE-like)
+ *   - arcsStyle:     "shortest" (default) | "fan" (block arcs, supports wrap)
+ *   - openAngleDeg:  number (gap wedge for "fan" angles)
+ *   - rotateDeg:     number (rotation for "fan" angles)
  */
-export default function radialLayout(node, opts =  {}) {
-  const data = {};
-  data.data = radialData(node);
-  data.radii = getRadii(node);
-  data.arcs = getArcs(data.data);
-  data.child_arcs = getChildArcs(data.data);
+export default function radialLayout(node, opts = {}) {
+  const {
+    angleStrategy = "cmean",
+    arcsStyle = "shortest",
+    openAngleDeg = 0,
+    rotateDeg = 0
+  } = opts;
 
-  const pd = fortify(node, true);
-  const angleMap = fanAngles(pd, {
-    openAngleDeg: opts.openAngleDeg ?? 0,
-    rotateDeg: opts.rotateDeg ?? 0
-  });
+  // Start with your current enriched nodes (angle + r from radialData)
+  const pd = radialData(node);
 
-  // stamp angles + x,y back onto pd (r stays your cumulative edge length)
-  for (const d of pd) {
-    d.angle = angleMap.get(d.thisId) ?? 0;
-    d.x = d.r * Math.cos(d.angle);
-    d.y = d.r * Math.sin(d.angle);
+  if (angleStrategy === "fan") {
+    // overwrite angles with APE-like fan angles; keep radii r as-is
+    const angleMap = fanAngles(pd, { openAngleDeg, rotateDeg });
+    for (const d of pd) {
+      const a = angleMap.get(d.thisId);
+      if (a != null) {
+        d.angle = a;
+        d.x = d.r * Math.cos(a);
+        d.y = d.r * Math.sin(a);
+      }
+    }
   }
 
-  data.data_pd = pd;
-  data.arcs_fan = getArcsFan(pd);
+  // Build spokes using the angles currently on pd
+  const radii = (angleStrategy === "fan")
+    ? getRadiiFromPd(pd)
+    : getRadii(node);
 
-  return data;
+  // Choose arc builder
+  const arcs = (arcsStyle === "fan")
+    ? getArcsFan(pd)
+    : getArcs(pd);
+
+  // per-child arcs for half-arc highlighting if you already use them
+  const child_arcs = getChildArcs(pd);
+
+  return { data: pd, radii, arcs, child_arcs };
 }
 

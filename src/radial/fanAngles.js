@@ -1,8 +1,8 @@
-// fanAngles.js
+// APE-like "fan" angles: tips evenly spaced with open-angle gap & rotation,
+// internal nodes = arithmetic mean of unwrapped child angles.
 const TAU = Math.PI * 2;
 const norm = (t) => ((t % TAU) + TAU) % TAU;
 
-// Unwrap angles around a reference so they sit within [ref-π, ref+π]
 function unwrapAround(ref, a) {
   let x = a;
   while (x < ref - Math.PI) x += TAU;
@@ -10,26 +10,17 @@ function unwrapAround(ref, a) {
   return x;
 }
 
-/**
- * Compute APE "fan" compatible angles:
- *  - Tips evenly spaced over [0, span] where span = 2π*(1 - 1/Ntip) - gap
- *  - Then + rotate (radians)
- *  - Internal nodes = arithmetic mean of child angles (unwrapped)
- *
- * pd: fortified nodes array (has thisId, parentId, children[])
- * opts: { openAngleDeg=0, rotateDeg=0 }
- * returns: Map(nodeId -> angle)
- */
 export default function fanAngles(pd, opts = {}) {
   const { openAngleDeg = 0, rotateDeg = 0 } = opts;
   const gap = (openAngleDeg / 360) * TAU;
-  const rotate = (rotateDeg / 360) * TAU;
+  const rot = (rotateDeg / 360) * TAU;
 
-  // Find root and collect tips in cladewise/DFS order
+  // root + children index
   let root = null;
-  const kids = new Map(pd.map(d => [d.thisId, d.children || []]));
+  const kids = new Map(pd.map((d) => [d.thisId, d.children || []]));
   for (const d of pd) if (d.parentId == null) { root = d.thisId; break; }
 
+  // tip order (DFS left→right like your fortify)
   const tipIds = [];
   (function dfs(id) {
     const c = kids.get(id) || [];
@@ -38,25 +29,20 @@ export default function fanAngles(pd, opts = {}) {
   })(root);
 
   const N = Math.max(1, tipIds.length);
-  // APE: 0 .. 2π*(1 - 1/N) - gap, length.out=N (no last step overlap)
-  const maxA = TAU * (1 - 1 / N) - gap;
+  const maxA = TAU * (1 - 1 / N) - gap;       // note: no last-step overlap
   const step = N > 1 ? maxA / (N - 1) : 0;
 
   const angle = new Map();
-  tipIds.forEach((id, i) => {
-    angle.set(id, norm(i * step + rotate));
-  });
+  tipIds.forEach((id, i) => angle.set(id, norm(i * step + rot)));
 
-  // Internal nodes: arithmetic mean of child angles (unwrapped)
+  // internal nodes: arithmetic mean of child angles (unwrapped)
   (function setInternal(id) {
     const c = kids.get(id) || [];
     for (const ch of c) setInternal(ch);
-    if (c.length > 0) {
-      // unwrap child angles around the first child's angle
+    if (c.length) {
       const a0 = angle.get(c[0]);
-      const unwrapped = c.map(ch => unwrapAround(a0, angle.get(ch)));
-      const mean = unwrapped.reduce((s, v) => s + v, 0) / unwrapped.length;
-      angle.set(id, norm(mean));
+      const arr = c.map((ch) => unwrapAround(a0, angle.get(ch)));
+      angle.set(id, norm(arr.reduce((s, v) => s + v, 0) / arr.length));
     }
   })(root);
 

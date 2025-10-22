@@ -61,6 +61,21 @@ function describeArc(cx, cy, radius, startAngle, endAngle) {
   return `M ${p0.x} ${p0.y} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${p1.x} ${p1.y}`;
 }
 
+// src/radial/describeArcSweep.js
+const TAU$1 = Math.PI * 2;
+const norm$1 = (t) => ((t % TAU$1) + TAU$1) % TAU$1;
+
+function describeArcSweep(cx, cy, r, a0, a1, sweep /*0=CCW,1=CW*/) {
+  const delta = sweep === 0 ? norm$1(a1 - a0) : norm$1(a0 - a1);
+  if (!(r > 0) || delta < 1e-9) return "";
+  const largeArcFlag = delta > Math.PI ? 1 : 0;
+
+  const x0 = cx + r * Math.cos(a0), y0 = cy - r * Math.sin(a0);
+  const x1 = cx + r * Math.cos(a1), y1 = cy - r * Math.sin(a1);
+
+  return `M ${x0} ${y0} A ${r} ${r} 0 ${largeArcFlag} ${sweep} ${x1} ${y1}`;
+}
+
 /**
  * Recursive function for pre-order traversal of tree (returns array)
  */
@@ -939,7 +954,7 @@ function drawPhylogeny(
     const byId = new Map(horizontal.map((d) => [d.thisId, d]));
     const tipById = new Map(tips.map((d) => [d.thisId, d]));
     const tipByLabel = new Map(tips.map((d) => [d.thisLabel, d]));
-    const rootToTip = makeRootToTipGetter(byId, { prefer: "x1" }); 
+    const rootToTip = makeRootToTipGetter(byId, { prefer: "x1" });
 
     const maxY = d3__namespace.max(horizontal, (d) => d.y1);
     const minY = d3__namespace.min(horizontal, (d) => d.y1);
@@ -1101,7 +1116,10 @@ function drawPhylogeny(
     return svg.node();
   } else if (layout === "radial") {
     const parsedTree = readTree(treeText);
-    const rad = radialLayout(parsedTree);
+    const rad = radialLayout(parsedTree, {
+      angleStrategy: "fan",
+      arcsStyle: "fan"
+    });
 
     // ===== MODE =====
     const TIP_MODE = radialMode; // "phylo" (shorten to original tips) or "outer" (project to one circle)
@@ -1127,7 +1145,9 @@ function drawPhylogeny(
       .scaleLinear()
       .domain([-scaleRadial, scaleRadial])
       .range([h, 0]);
+
     const radiusPx = (r) => r * (w / (2 * scaleRadial));
+    const radiusPxTree = (r) => treeScale * radiusPx(r);
 
     // ===== INDEXES / HELPERS =====
     const byId = new Map(rad.data.map((d) => [d.thisId, d]));
@@ -1311,7 +1331,7 @@ function drawPhylogeny(
 
       // label hover
       labels
-        .on("mouseenter", function(event, d) {
+        .on("mouseenter", function(_event, d) {
           drawRadialPath(d, hoverLines, hoverArcs, hoverStroke, hoverWidth);
           d3__namespace.select(this).select("text").attr("font-weight", 600);
         })
@@ -1368,15 +1388,23 @@ function drawPhylogeny(
         if (a) {
           arcLayer
             .append("path")
-            .attr(
-              "d",
-              describeArc(
-                centerX,
-                centerY,
-                Math.max(0, radiusPx(a.radius)),
-                a.start,
-                a.end
-              )
+            .attr("d", (d) =>
+              d.sweep == null
+                ? describeArc(
+                  centerX,
+                  centerY,
+                  radiusPxTree(d.radius),
+                  d.start,
+                  d.end
+                )
+                : describeArcSweep(
+                  centerX,
+                  centerY,
+                  radiusPxTree(d.radius),
+                  d.start,
+                  d.end,
+                  d.sweep
+                )
             )
             .attr("fill", "none")
             .attr("stroke", stroke)

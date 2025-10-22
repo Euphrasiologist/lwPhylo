@@ -260,7 +260,9 @@ export default function drawPhylogeny(
       .scaleLinear()
       .domain([-scaleRadial, scaleRadial])
       .range([h, 0]);
+
     const radiusPx = (r) => r * (w / (2 * scaleRadial));
+    const radiusPxTree = (r) => treeScale * radiusPx(r);
 
     // ===== INDEXES / HELPERS =====
     const byId = new Map(rad.data.map((d) => [d.thisId, d]));
@@ -444,7 +446,7 @@ export default function drawPhylogeny(
 
       // label hover
       labels
-        .on("mouseenter", function(event, d) {
+        .on("mouseenter", function(_event, d) {
           drawRadialPath(d, hoverLines, hoverArcs, hoverStroke, hoverWidth);
           d3.select(this).select("text").attr("font-weight", 600);
         })
@@ -501,15 +503,23 @@ export default function drawPhylogeny(
         if (a) {
           arcLayer
             .append("path")
-            .attr(
-              "d",
-              lw.describeArc(
-                centerX,
-                centerY,
-                Math.max(0, radiusPx(a.radius)),
-                a.start,
-                a.end
-              )
+            .attr("d", (d) =>
+              d.sweep == null
+                ? lw.describeArc(
+                  centerX,
+                  centerY,
+                  radiusPxTree(d.radius),
+                  d.start,
+                  d.end
+                )
+                : lw.describeArcSweep(
+                  centerX,
+                  centerY,
+                  radiusPxTree(d.radius),
+                  d.start,
+                  d.end,
+                  d.sweep
+                )
             )
             .attr("fill", "none")
             .attr("stroke", stroke)

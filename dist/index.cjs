@@ -1314,7 +1314,6 @@ function drawPhylogeny(
       .range([h, 0]);
 
     const radiusPx = (r) => r * (w / (2 * scaleRadial));
-    const radiusPxTree = (r) => treeScale * radiusPx(r);
 
     // ===== INDEXES / HELPERS =====
     const byId = new Map(rad.data.map((d) => [d.thisId, d]));
@@ -1560,14 +1559,14 @@ function drawPhylogeny(
                 ? describeArc(
                   centerX,
                   centerY,
-                  radiusPxTree(d.radius),
+                  radiusPx(d.radius),
                   d.start,
                   d.end
                 )
                 : describeArcSweep(
                   centerX,
                   centerY,
-                  radiusPxTree(d.radius),
+                  radiusPx(d.radius),
                   d.start,
                   d.end,
                   d.sweep

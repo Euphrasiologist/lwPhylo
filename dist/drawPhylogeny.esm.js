@@ -1178,14 +1178,24 @@ function drawPhylogeny(
       .data(rad.arcs)
       .join("path")
       .attr("d", (d) =>
-        describeArc(
-          centerX,
-          centerY,
-          Math.max(0, radiusPx(d.radius)),
-          d.start,
-          d.end
-        )
+        d.sweep == null
+          ? describeArc(
+            centerX,
+            centerY,
+            radiusPx(d.radius),
+            d.start,
+            d.end
+          )
+          : describeArcSweep(
+            centerX,
+            centerY,
+            radiusPx(d.radius),
+            d.start,
+            d.end,
+            d.sweep
+          )
       )
+
       .attr("fill", "none")
       .attr("stroke", "#777")
       .attr("stroke-width", strokeWidth);

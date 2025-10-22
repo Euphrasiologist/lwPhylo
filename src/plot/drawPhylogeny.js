@@ -62,7 +62,7 @@ export default function drawPhylogeny(
     const byId = new Map(horizontal.map((d) => [d.thisId, d]));
     const tipById = new Map(tips.map((d) => [d.thisId, d]));
     const tipByLabel = new Map(tips.map((d) => [d.thisLabel, d]));
-    const rootToTip = makeRootToTipGetter(byId, { prefer: "x1" }); 
+    const rootToTip = makeRootToTipGetter(byId, { prefer: "x1" });
 
     const maxY = d3.max(horizontal, (d) => d.y1);
     const minY = d3.min(horizontal, (d) => d.y1);
@@ -228,7 +228,10 @@ export default function drawPhylogeny(
       new Error("width and height must be the same for radial layout");
     }
     const parsedTree = lw.readTree(treeText);
-    const rad = lw.radialLayout(parsedTree);
+    const rad = lw.radialLayout(parsedTree, {
+      angleStrategy: "fan",
+      arcsStyle: "fan"
+    });
 
     // ===== MODE =====
     const TIP_MODE = radialMode; // "phylo" (shorten to original tips) or "outer" (project to one circle)

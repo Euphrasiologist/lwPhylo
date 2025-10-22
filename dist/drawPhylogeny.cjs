@@ -466,8 +466,9 @@ function getChildArcs(pd) {
  */
 function radialLayout(node, opts = {}) {
   const {
-    angleStrategy = "cmean",
-    arcsStyle = "shortest",
+    // default fan
+    angleStrategy = "fan",
+    arcsStyle = "fan",
     openAngleDeg = 0,
     rotateDeg = 0
   } = opts;

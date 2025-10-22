@@ -1,5 +1,6 @@
 export { default as phisheye } from "./phisheye/phisheye.js"
 export { default as describeArc } from "./radial/describeArc.js"
+export { default as describeArcSweep } from "./radial/describeArcSweep.js"
 export { default as radialLayout } from "./radial/radialLayout.js"
 export { default as rectangleLayout } from "./rectangle/rectangleLayout.js"
 export { default as unrooted } from "./unrooted/unrooted.js"

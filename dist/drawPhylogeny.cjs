@@ -238,6 +238,37 @@ function getRadii(node) {
   return segments;
 }
 
+// src/radial/getRadiiFromPd.js
+/**
+ * Build per-edge spokes using the *current* pd angles/r.
+ * Output: [{ parentId, childId, x0,y0,x1,y1, isTip }]
+ */
+function getRadiiFromPd(pd) {
+  const byId = new Map(pd.map(d => [d.thisId, d]));
+  const root = pd.find(d => d.parentId == null)?.thisId;
+
+  const segments = [];
+  for (const d of pd) {
+    if (d.thisId === root) continue;
+    const parent = byId.get(d.parentId);
+    if (!parent) continue;
+
+    const theta = d.angle;
+    const r0 = parent.r, r1 = d.r;
+
+    segments.push({
+      parentId: parent.thisId,
+      childId: d.thisId,
+      x0: r0 * Math.cos(theta),
+      y0: r0 * Math.sin(theta),
+      x1: r1 * Math.cos(theta),
+      y1: r1 * Math.sin(theta),
+      isTip: !!d.isTip
+    });
+  }
+  return segments;
+}
+
 /**
  * Build arc descriptors for each internal parent:
  *  - One arc per internal node at radius = parent.r
@@ -304,6 +335,95 @@ function getArcs(pd) {
 }
 
 /**
+ * Build APE-like block arcs per internal parent:
+ *  radius = parent.r
+ *  start = first child's angle
+ *  end   = last child's angle
+ *  sweep = 0 (CCW) if end>=start; 1 (CW) if wrapped across 2π
+ *
+ * @param {Array} pd nodes with {thisId,parentId,children,angle,r}
+ * @returns {Array} [{parentId,thisId,radius,start,end,sweep}]
+ */
+function getArcsFan(pd) {
+  const byId = new Map(pd.map(d => [d.thisId, d]));
+  const arcs = [];
+
+  for (const p of pd) {
+    const c = p.children || [];
+    if (c.length < 2 || !(p.r > 0)) continue;
+
+    const first = byId.get(c[0])?.angle;
+    const last  = byId.get(c[c.length - 1])?.angle;
+    if (first == null || last == null) continue;
+
+    const start = first;
+    const end = last;
+    const sweep = end >= start ? 0 : 1; // CW if wrapped
+
+    arcs.push({
+      parentId: p.parentId,
+      thisId: p.thisId,
+      radius: p.r,
+      start,
+      end,
+      sweep
+    });
+  }
+  return arcs;
+}
+
+// APE-like "fan" angles: tips evenly spaced with open-angle gap & rotation,
+// internal nodes = arithmetic mean of unwrapped child angles.
+const TAU = Math.PI * 2;
+const norm = (t) => ((t % TAU) + TAU) % TAU;
+
+function unwrapAround(ref, a) {
+  let x = a;
+  while (x < ref - Math.PI) x += TAU;
+  while (x > ref + Math.PI) x -= TAU;
+  return x;
+}
+
+function fanAngles(pd, opts = {}) {
+  const { openAngleDeg = 0, rotateDeg = 0 } = opts;
+  const gap = (openAngleDeg / 360) * TAU;
+  const rot = (rotateDeg / 360) * TAU;
+
+  // root + children index
+  let root = null;
+  const kids = new Map(pd.map((d) => [d.thisId, d.children || []]));
+  for (const d of pd) if (d.parentId == null) { root = d.thisId; break; }
+
+  // tip order (DFS left→right like your fortify)
+  const tipIds = [];
+  (function dfs(id) {
+    const c = kids.get(id) || [];
+    if (!c.length) { tipIds.push(id); return; }
+    for (const ch of c) dfs(ch);
+  })(root);
+
+  const N = Math.max(1, tipIds.length);
+  const maxA = TAU * (1 - 1 / N) - gap;       // note: no last-step overlap
+  const step = N > 1 ? maxA / (N - 1) : 0;
+
+  const angle = new Map();
+  tipIds.forEach((id, i) => angle.set(id, norm(i * step + rot)));
+
+  // internal nodes: arithmetic mean of child angles (unwrapped)
+  (function setInternal(id) {
+    const c = kids.get(id) || [];
+    for (const ch of c) setInternal(ch);
+    if (c.length) {
+      const a0 = angle.get(c[0]);
+      const arr = c.map((ch) => unwrapAround(a0, angle.get(ch)));
+      angle.set(id, norm(arr.reduce((s, v) => s + v, 0) / arr.length));
+    }
+  })(root);
+
+  return angle;
+}
+
+/**
  * Per-child "half" arcs for radial trees.
  *
  * For each non-root node (child), emit an arc at the PARENT's radius that
@@ -334,143 +454,54 @@ function getChildArcs(pd) {
   return arcs;
 }
 
-// fanAngles.js
-const TAU = Math.PI * 2;
-const norm = (t) => ((t % TAU) + TAU) % TAU;
-
-// Unwrap angles around a reference so they sit within [ref-π, ref+π]
-function unwrapAround(ref, a) {
-  let x = a;
-  while (x < ref - Math.PI) x += TAU;
-  while (x > ref + Math.PI) x -= TAU;
-  return x;
-}
+// src/radial/radialLayout.js
 
 /**
- * Compute APE "fan" compatible angles:
- *  - Tips evenly spaced over [0, span] where span = 2π*(1 - 1/Ntip) - gap
- *  - Then + rotate (radians)
- *  - Internal nodes = arithmetic mean of child angles (unwrapped)
- *
- * pd: fortified nodes array (has thisId, parentId, children[])
- * opts: { openAngleDeg=0, rotateDeg=0 }
- * returns: Map(nodeId -> angle)
+ * radialLayout(node, opts?)
+ * opts:
+ *   - angleStrategy: "cmean" (default, your current) | "fan" (APE-like)
+ *   - arcsStyle:     "shortest" (default) | "fan" (block arcs, supports wrap)
+ *   - openAngleDeg:  number (gap wedge for "fan" angles)
+ *   - rotateDeg:     number (rotation for "fan" angles)
  */
-function fanAngles(pd, opts = {}) {
-  const { openAngleDeg = 0, rotateDeg = 0 } = opts;
-  const gap = (openAngleDeg / 360) * TAU;
-  const rotate = (rotateDeg / 360) * TAU;
+function radialLayout(node, opts = {}) {
+  const {
+    angleStrategy = "cmean",
+    arcsStyle = "shortest",
+    openAngleDeg = 0,
+    rotateDeg = 0
+  } = opts;
 
-  // Find root and collect tips in cladewise/DFS order
-  let root = null;
-  const kids = new Map(pd.map(d => [d.thisId, d.children || []]));
-  for (const d of pd) if (d.parentId == null) { root = d.thisId; break; }
+  // Start with your current enriched nodes (angle + r from radialData)
+  const pd = radialData(node);
 
-  const tipIds = [];
-  (function dfs(id) {
-    const c = kids.get(id) || [];
-    if (!c.length) { tipIds.push(id); return; }
-    for (const ch of c) dfs(ch);
-  })(root);
-
-  const N = Math.max(1, tipIds.length);
-  // APE: 0 .. 2π*(1 - 1/N) - gap, length.out=N (no last step overlap)
-  const maxA = TAU * (1 - 1 / N) - gap;
-  const step = N > 1 ? maxA / (N - 1) : 0;
-
-  const angle = new Map();
-  tipIds.forEach((id, i) => {
-    angle.set(id, norm(i * step + rotate));
-  });
-
-  // Internal nodes: arithmetic mean of child angles (unwrapped)
-  (function setInternal(id) {
-    const c = kids.get(id) || [];
-    for (const ch of c) setInternal(ch);
-    if (c.length > 0) {
-      // unwrap child angles around the first child's angle
-      const a0 = angle.get(c[0]);
-      const unwrapped = c.map(ch => unwrapAround(a0, angle.get(ch)));
-      const mean = unwrapped.reduce((s, v) => s + v, 0) / unwrapped.length;
-      angle.set(id, norm(mean));
+  if (angleStrategy === "fan") {
+    // overwrite angles with APE-like fan angles; keep radii r as-is
+    const angleMap = fanAngles(pd, { openAngleDeg, rotateDeg });
+    for (const d of pd) {
+      const a = angleMap.get(d.thisId);
+      if (a != null) {
+        d.angle = a;
+        d.x = d.r * Math.cos(a);
+        d.y = d.r * Math.sin(a);
+      }
     }
-  })(root);
-
-  return angle;
-}
-
-// getArcsFan.js
-
-/**
- * Build arcs like APE's circular.plot:
- *  For each internal parent, draw a single arc at radius=parent.r
- *  going from first child's angle to last child's angle in child order.
- *  If last < first (wrap), we draw CW (decreasing) to stay on the block.
- *
- * pd: array with { thisId, parentId, r, children[], angle }
- * returns: [{ parentId, thisId, radius, start, end, sweep }] 
- *   where sweep=0 means CCW (start→end increasing),
- *         sweep=1 means CW  (start→end decreasing across wrap).
- */
-function getArcsFan(pd) {
-  const byId = new Map(pd.map(d => [d.thisId, d]));
-  const arcs = [];
-
-  for (const p of pd) {
-    const c = p.children || [];
-    if (c.length < 2) continue;
-    const A = c.map(id => byId.get(id)?.angle).filter(a => a != null);
-    if (A.length < 2 || !isFinite(p.r) || p.r <= 0) continue;
-
-    // Children are contiguous in tip order; take first and last
-    let start = A[0];
-    let end = A[A.length - 1];
-
-    // Decide direction like APE’s seq(start, end): 
-    // if end >= start → CCW; else CW across wrap.
-    const sweep = end >= start ? 0 : 1;
-
-    arcs.push({
-      parentId: p.parentId,
-      thisId: p.thisId,
-      radius: p.r,
-      start, end, sweep
-    });
-  }
-  return arcs;
-}
-
-/**
- * Simple wrapper for radial layout:
- *  - data: per-node { angle, r, x, y, ... }
- *  - radii: per-edge radial spokes (parent.r → child.r)
- *  - arcs: per-parent arcs spanning all children at parent's radius
- *  - child_arcs: per-child half-arcs (parent.angle → child.angle) at parent's radius
- */
-function radialLayout(node, opts =  {}) {
-  const data = {};
-  data.data = radialData(node);
-  data.radii = getRadii(node);
-  data.arcs = getArcs(data.data);
-  data.child_arcs = getChildArcs(data.data);
-
-  const pd = fortify(node, true);
-  const angleMap = fanAngles(pd, {
-    openAngleDeg: opts.openAngleDeg ?? 0,
-    rotateDeg: opts.rotateDeg ?? 0
-  });
-
-  // stamp angles + x,y back onto pd (r stays your cumulative edge length)
-  for (const d of pd) {
-    d.angle = angleMap.get(d.thisId) ?? 0;
-    d.x = d.r * Math.cos(d.angle);
-    d.y = d.r * Math.sin(d.angle);
   }
 
-  data.data_pd = pd;
-  data.arcs_fan = getArcsFan(pd);
+  // Build spokes using the angles currently on pd
+  const radii = (angleStrategy === "fan")
+    ? getRadiiFromPd(pd)
+    : getRadii(node);
 
-  return data;
+  // Choose arc builder
+  const arcs = (arcsStyle === "fan")
+    ? getArcsFan(pd)
+    : getArcs(pd);
+
+  // per-child arcs for half-arc highlighting if you already use them
+  const child_arcs = getChildArcs(pd);
+
+  return { data: pd, radii, arcs, child_arcs };
 }
 
 /**

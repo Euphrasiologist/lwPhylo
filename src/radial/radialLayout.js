@@ -17,8 +17,9 @@ import getChildArcs from "./getChildArcs.js";  // optional existing helper
  */
 export default function radialLayout(node, opts = {}) {
   const {
-    angleStrategy = "cmean",
-    arcsStyle = "shortest",
+    // default fan
+    angleStrategy = "fan",
+    arcsStyle = "fan",
     openAngleDeg = 0,
     rotateDeg = 0
   } = opts;

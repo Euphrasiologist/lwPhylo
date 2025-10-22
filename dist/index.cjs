@@ -191,7 +191,7 @@ function preorder(node, list = []) {
  * this is akin to a "phylo" object in R.
  */
 
-function fortify$1 (tree, sort = true) {
+function fortify (tree, sort = true) {
     var df = [];
 
     for (const node of preorder(tree)) {
@@ -246,7 +246,7 @@ function radialData(node) {
   const TAU = Math.PI * 2;
   const norm = (t) => ((t % TAU) + TAU) % TAU;
 
-  const pd = fortify$1(node, /*sort*/ true);
+  const pd = fortify(node, /*sort*/ true);
   const byId = new Map(pd.map(d => [d.thisId, d]));
   const kids = new Map(pd.map(d => [d.thisId, d.children || []]));
 
@@ -560,7 +560,7 @@ function getArcsFan(pd) {
  *  - arcs: per-parent arcs spanning all children at parent's radius
  *  - child_arcs: per-child half-arcs (parent.angle → child.angle) at parent's radius
  */
-function radialLayout(node) {
+function radialLayout(node, opts =  {}) {
   const data = {};
   data.data = radialData(node);
   data.radii = getRadii(node);
@@ -613,7 +613,7 @@ function mean (values, valueof) {
  */
 
 function getHorizontal(node) {
-  const pd = fortify$1(node);
+  const pd = fortify(node);
 
   // Fast lookup from id -> pd index
   const idIndex = new Map(pd.map((d, i) => [d.thisId, i]));
@@ -887,7 +887,7 @@ function equalAngleLayout(node) {
 function unrooted (node) {
   var data = {};
   // use the Felsenstein equal angle layout algorithm
-  var eq = fortify$1(equalAngleLayout(node));
+  var eq = fortify(equalAngleLayout(node));
   data.data = eq;
   // make the edges dataset
   data.edges = edges(eq);

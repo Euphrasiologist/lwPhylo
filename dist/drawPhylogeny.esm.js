@@ -1094,6 +1094,10 @@ function drawPhylogeny(
 
     return svg.node();
   } else if (layout === "radial") {
+    // RADIAL LAYOUT
+    if (width !== height) {
+      throw new Error("width and height must be the same for radial layout");
+    }
     const parsedTree = readTree(treeText);
     const rad = radialLayout(parsedTree, {
       angleStrategy: "fan",
@@ -1103,6 +1107,10 @@ function drawPhylogeny(
     // ===== MODE =====
     const TIP_MODE = radialMode; // "phylo" (shorten to original tips) or "outer" (project to one circle)
     const isOuter = TIP_MODE === "outer";
+    if (TIP_MODE !== "phylo" && TIP_MODE !== "outer") {
+      throw new Error("radialMode must be either 'phylo' or 'outer'");
+    }
+
 
     // visuals (0 = let spokes reach the dots)
     const DOT_R = 3;
@@ -1268,7 +1276,7 @@ function drawPhylogeny(
 
     // maps for fast lookup on hover (childId → spoke / arc)
     const spokeByChild = new Map(rad.radii.map((s) => [childIdOf(s), s]));
-    const arcByChild = new Map(rad.child_arcs.map((a) => [a.childId, a]));
+    const arcByChild = new Map((rad.child_arcs ?? []).map((a) => [a.childId, a]));
 
     // ===== LABELS =====
     // Labels — make them follow the tip position used by the current mode
@@ -1374,29 +1382,17 @@ function drawPhylogeny(
         // ----- half-arc at parent radius (parent.angle → child.angle) -----
         const a = arcByChild.get(cur.thisId);
         if (a) {
+          const pathD = (a.sweep == null)
+            ? describeArc(centerX, centerY, radiusPx(a.radius), a.start, a.end)
+            : describeArcSweep(centerX, centerY, radiusPx(a.radius), a.start, a.end, a.sweep);
+
           arcLayer
             .append("path")
-            .attr("d", (d) =>
-              d.sweep == null
-                ? describeArc(
-                  centerX,
-                  centerY,
-                  radiusPx(d.radius),
-                  d.start,
-                  d.end
-                )
-                : describeArcSweep(
-                  centerX,
-                  centerY,
-                  radiusPx(d.radius),
-                  d.start,
-                  d.end,
-                  d.sweep
-                )
-            )
+            .attr("d", pathD)
             .attr("fill", "none")
             .attr("stroke", stroke)
             .attr("stroke-width", width);
+
         }
 
         first = false;

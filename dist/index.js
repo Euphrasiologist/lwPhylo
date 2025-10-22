@@ -170,7 +170,7 @@ function preorder(node, list = []) {
  * this is akin to a "phylo" object in R.
  */
 
-function fortify (tree, sort = true) {
+function fortify$1 (tree, sort = true) {
     var df = [];
 
     for (const node of preorder(tree)) {
@@ -225,7 +225,7 @@ function radialData(node) {
   const TAU = Math.PI * 2;
   const norm = (t) => ((t % TAU) + TAU) % TAU;
 
-  const pd = fortify(node, /*sort*/ true);
+  const pd = fortify$1(node, /*sort*/ true);
   const byId = new Map(pd.map(d => [d.thisId, d]));
   const kids = new Map(pd.map(d => [d.thisId, d.children || []]));
 
@@ -426,6 +426,112 @@ function getChildArcs(pd) {
   return arcs;
 }
 
+// fanAngles.js
+const TAU = Math.PI * 2;
+const norm = (t) => ((t % TAU) + TAU) % TAU;
+
+// Unwrap angles around a reference so they sit within [ref-π, ref+π]
+function unwrapAround(ref, a) {
+  let x = a;
+  while (x < ref - Math.PI) x += TAU;
+  while (x > ref + Math.PI) x -= TAU;
+  return x;
+}
+
+/**
+ * Compute APE "fan" compatible angles:
+ *  - Tips evenly spaced over [0, span] where span = 2π*(1 - 1/Ntip) - gap
+ *  - Then + rotate (radians)
+ *  - Internal nodes = arithmetic mean of child angles (unwrapped)
+ *
+ * pd: fortified nodes array (has thisId, parentId, children[])
+ * opts: { openAngleDeg=0, rotateDeg=0 }
+ * returns: Map(nodeId -> angle)
+ */
+function fanAngles(pd, opts = {}) {
+  const { openAngleDeg = 0, rotateDeg = 0 } = opts;
+  const gap = (openAngleDeg / 360) * TAU;
+  const rotate = (rotateDeg / 360) * TAU;
+
+  // Find root and collect tips in cladewise/DFS order
+  let root = null;
+  const kids = new Map(pd.map(d => [d.thisId, d.children || []]));
+  for (const d of pd) if (d.parentId == null) { root = d.thisId; break; }
+
+  const tipIds = [];
+  (function dfs(id) {
+    const c = kids.get(id) || [];
+    if (!c.length) { tipIds.push(id); return; }
+    for (const ch of c) dfs(ch);
+  })(root);
+
+  const N = Math.max(1, tipIds.length);
+  // APE: 0 .. 2π*(1 - 1/N) - gap, length.out=N (no last step overlap)
+  const maxA = TAU * (1 - 1 / N) - gap;
+  const step = N > 1 ? maxA / (N - 1) : 0;
+
+  const angle = new Map();
+  tipIds.forEach((id, i) => {
+    angle.set(id, norm(i * step + rotate));
+  });
+
+  // Internal nodes: arithmetic mean of child angles (unwrapped)
+  (function setInternal(id) {
+    const c = kids.get(id) || [];
+    for (const ch of c) setInternal(ch);
+    if (c.length > 0) {
+      // unwrap child angles around the first child's angle
+      const a0 = angle.get(c[0]);
+      const unwrapped = c.map(ch => unwrapAround(a0, angle.get(ch)));
+      const mean = unwrapped.reduce((s, v) => s + v, 0) / unwrapped.length;
+      angle.set(id, norm(mean));
+    }
+  })(root);
+
+  return angle;
+}
+
+// getArcsFan.js
+
+/**
+ * Build arcs like APE's circular.plot:
+ *  For each internal parent, draw a single arc at radius=parent.r
+ *  going from first child's angle to last child's angle in child order.
+ *  If last < first (wrap), we draw CW (decreasing) to stay on the block.
+ *
+ * pd: array with { thisId, parentId, r, children[], angle }
+ * returns: [{ parentId, thisId, radius, start, end, sweep }] 
+ *   where sweep=0 means CCW (start→end increasing),
+ *         sweep=1 means CW  (start→end decreasing across wrap).
+ */
+function getArcsFan(pd) {
+  const byId = new Map(pd.map(d => [d.thisId, d]));
+  const arcs = [];
+
+  for (const p of pd) {
+    const c = p.children || [];
+    if (c.length < 2) continue;
+    const A = c.map(id => byId.get(id)?.angle).filter(a => a != null);
+    if (A.length < 2 || !isFinite(p.r) || p.r <= 0) continue;
+
+    // Children are contiguous in tip order; take first and last
+    let start = A[0];
+    let end = A[A.length - 1];
+
+    // Decide direction like APE’s seq(start, end): 
+    // if end >= start → CCW; else CW across wrap.
+    const sweep = end >= start ? 0 : 1;
+
+    arcs.push({
+      parentId: p.parentId,
+      thisId: p.thisId,
+      radius: p.r,
+      start, end, sweep
+    });
+  }
+  return arcs;
+}
+
 /**
  * Simple wrapper for radial layout:
  *  - data: per-node { angle, r, x, y, ... }
@@ -439,6 +545,23 @@ function radialLayout(node) {
   data.radii = getRadii(node);
   data.arcs = getArcs(data.data);
   data.child_arcs = getChildArcs(data.data);
+
+  const pd = fortify(node, true);
+  const angleMap = fanAngles(pd, {
+    openAngleDeg: opts.openAngleDeg ?? 0,
+    rotateDeg: opts.rotateDeg ?? 0
+  });
+
+  // stamp angles + x,y back onto pd (r stays your cumulative edge length)
+  for (const d of pd) {
+    d.angle = angleMap.get(d.thisId) ?? 0;
+    d.x = d.r * Math.cos(d.angle);
+    d.y = d.r * Math.sin(d.angle);
+  }
+
+  data.data_pd = pd;
+  data.arcs_fan = getArcsFan(pd);
+
   return data;
 }
 
@@ -469,7 +592,7 @@ function mean (values, valueof) {
  */
 
 function getHorizontal(node) {
-  const pd = fortify(node);
+  const pd = fortify$1(node);
 
   // Fast lookup from id -> pd index
   const idIndex = new Map(pd.map((d, i) => [d.thisId, i]));
@@ -743,7 +866,7 @@ function equalAngleLayout(node) {
 function unrooted (node) {
   var data = {};
   // use the Felsenstein equal angle layout algorithm
-  var eq = fortify(equalAngleLayout(node));
+  var eq = fortify$1(equalAngleLayout(node));
   data.data = eq;
   // make the edges dataset
   data.edges = edges(eq);
@@ -1482,7 +1605,7 @@ function drawPhylogeny(
     const tipByLabel = new Map(
       unrootedPhylo.data.filter((d) => d.isTip).map((d) => [d.thisLabel, d])
     );
-    const rootToTip = makeRootToTipGetter(byId, { prefer: "r" });
+    const rootToTip = makeRootToTipGetter(byId);
 
     if (showTooltips) {
       nodes

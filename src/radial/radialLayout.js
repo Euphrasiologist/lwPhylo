@@ -6,6 +6,7 @@ import getArcs from "./getArcs.js";            // your existing "shortest-arc"
 import getArcsFan from "./getArcsFan.js";      // new
 import fanAngles from "./fanAngles.js";
 import getChildArcs from "./getChildArcs.js";  // optional existing helper
+import getChildArcsFan from "./getChildArcsFan.js";  // optional existing helper
 
 /**
  * radialLayout(node, opts?)
@@ -51,7 +52,12 @@ export default function radialLayout(node, opts = {}) {
     : getArcs(pd);
 
   // per-child arcs for half-arc highlighting if you already use them
-  const child_arcs = getChildArcs(pd);
+  let child_arcs = [];
+  if (opts.arcsStyle === "fan") {
+    child_arcs = getChildArcsFan(data);
+  } else {
+    child_arcs = getChildArcs(data);
+  }
 
   return { data: pd, radii, arcs, child_arcs };
 }

@@ -332,7 +332,6 @@ export default function drawPhylogeny(
             d.sweep
           )
       )
-
       .attr("fill", "none")
       .attr("stroke", "#777")
       .attr("stroke-width", strokeWidth);

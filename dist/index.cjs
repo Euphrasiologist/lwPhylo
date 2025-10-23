@@ -622,7 +622,7 @@ function getChildArcsFan(pd) {
         radius: parent.r,   // IMPORTANT: draw at the PARENT circle
         start,
         end,
-        sweep: 0            // CCW (matches describeArcSweep usage)
+        sweep: 1            // CCW (matches describeArcSweep usage)
       });
     }
   }

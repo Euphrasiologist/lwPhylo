@@ -486,7 +486,7 @@ export default function drawPhylogeny(
       let first = true;
       while (cur && cur.parentId != null) {
         // ----- spoke (parent → child) -----
-        const s = spokeByChild.get(cur.thisId);
+        const s = spokeByChild.get(key(cur.thisId));
         if (s) {
           const px = s.x0,
             py = s.y0;
@@ -510,23 +510,21 @@ export default function drawPhylogeny(
         }
 
         // ----- half-arc at parent radius (parent.angle → child.angle) -----
-        const a = arcByChild.get(cur.thisId);
+        const a = arcByChild.get(key(cur.thisId));
+        function pathFromArcRecord(rec) {
+          const R = radiusPx(rec.radius);
+          return rec.sweep == null
+            ? lw.describeArc(centerX, centerY, R, rec.start, rec.end)
+            : lw.describeArcSweep(centerX, centerY, R, rec.start, rec.end, rec.sweep);
+        }
+
         if (a) {
-          function pathFromArcRecord(rec) {
-            const R = radiusPx(rec.radius);
-            return rec.sweep == null
-              ? lw.describeArc(centerX, centerY, R, rec.start, rec.end)
-              : lw.describeArcSweep(centerX, centerY, R, rec.start, rec.end, rec.sweep);
-          }
-
-
           arcLayer
             .append("path")
             .attr("d", pathFromArcRecord(a))
             .attr("fill", "none")
             .attr("stroke", stroke)
             .attr("stroke-width", width);
-
         }
 
         first = false;

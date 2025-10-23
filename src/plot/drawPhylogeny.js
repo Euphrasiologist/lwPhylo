@@ -291,6 +291,29 @@ export default function drawPhylogeny(
       return { X0, Y0, X1s: X0 + dx * t, Y1s: Y0 + dy * t, len };
     }
 
+    // put this next to your other radial helpers (top of file or in your lib)
+    function arcPathCCW(cx, cy, R, a0, a1) {
+      const TAU = Math.PI * 2;
+      const norm = (t) => ((t % TAU) + TAU) % TAU;
+
+      a0 = norm(a0);
+      a1 = norm(a1);
+
+      const delta = (a1 - a0 + TAU) % TAU;     // CCW span a0 -> a1 in [0, 2π)
+      if (delta < 1e-9) return "";             // degenerate; draw nothing
+
+      // With your polarToCartesian using y = cy - r*sin(t),
+      // sweepFlag=0 gives a visually CCW arc segment.
+      const largeArcFlag = delta > Math.PI ? 1 : 0;
+      const sweepFlag = 0;
+
+      const p0 = lw.polarToCartesian(cx, cy, R, a0);
+      const p1 = lw.polarToCartesian(cx, cy, R, a1);
+
+      return `M ${p0.x} ${p0.y} A ${R} ${R} 0 ${largeArcFlag} ${sweepFlag} ${p1.x} ${p1.y}`;
+    }
+
+
     // ===== SVG ROOT =====
     const svg = d3
       .create("svg")
@@ -510,9 +533,7 @@ export default function drawPhylogeny(
         // ----- half-arc at parent radius (parent.angle → child.angle) -----
         const a = arcByChild.get(cur.thisId);
         if (a) {
-          const pathD = (a.sweep == null)
-            ? lw.describeArc(centerX, centerY, radiusPx(a.radius), a.start, a.end)
-            : lw.describeArcSweep(centerX, centerY, radiusPx(a.radius), a.start, a.end, a.sweep);
+          const pathD = arcPathCCW(centerX, centerY, radiusPx(a.radius), a.start, a.end);
 
           arcLayer
             .append("path")

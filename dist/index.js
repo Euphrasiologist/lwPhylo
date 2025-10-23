@@ -1382,29 +1382,6 @@ function drawPhylogeny(
       return { X0, Y0, X1s: X0 + dx * t, Y1s: Y0 + dy * t, len };
     }
 
-    // put this next to your other radial helpers (top of file or in your lib)
-    function arcPathCCW(cx, cy, R, a0, a1) {
-      const TAU = Math.PI * 2;
-      const norm = (t) => ((t % TAU) + TAU) % TAU;
-
-      a0 = norm(a0);
-      a1 = norm(a1);
-
-      const delta = (a1 - a0 + TAU) % TAU;     // CCW span a0 -> a1 in [0, 2π)
-      if (delta < 1e-9) return "";             // degenerate; draw nothing
-
-      // With your polarToCartesian using y = cy - r*sin(t),
-      // sweepFlag=0 gives a visually CCW arc segment.
-      const largeArcFlag = delta > Math.PI ? 1 : 0;
-      const sweepFlag = 0;
-
-      const p0 = polarToCartesian(cx, cy, R, a0);
-      const p1 = polarToCartesian(cx, cy, R, a1);
-
-      return `M ${p0.x} ${p0.y} A ${R} ${R} 0 ${largeArcFlag} ${sweepFlag} ${p1.x} ${p1.y}`;
-    }
-
-
     // ===== SVG ROOT =====
     const svg = d3
       .create("svg")
@@ -1517,8 +1494,10 @@ function drawPhylogeny(
     }
 
     // maps for fast lookup on hover (childId → spoke / arc)
-    const spokeByChild = new Map(rad.radii.map((s) => [childIdOf(s), s]));
-    const arcByChild = new Map((rad.child_arcs ?? []).map((a) => [a.childId, a]));
+    const key = (x) => (typeof x === "string" ? +x : x);
+    const spokeByChild = new Map(rad.radii.map(s => [key(s.childId ?? s.thisId ?? s.id1), s]));
+    const arcByChild = new Map(rad.child_arcs.map(a => [key(a.childId), a]));
+
 
     // ===== LABELS =====
     // Labels — make them follow the tip position used by the current mode
@@ -1624,11 +1603,17 @@ function drawPhylogeny(
         // ----- half-arc at parent radius (parent.angle → child.angle) -----
         const a = arcByChild.get(cur.thisId);
         if (a) {
-          const pathD = arcPathCCW(centerX, centerY, radiusPx(a.radius), a.start, a.end);
+          function pathFromArcRecord(rec) {
+            const R = radiusPx(rec.radius);
+            return rec.sweep == null
+              ? describeArc(centerX, centerY, R, rec.start, rec.end)
+              : describeArcSweep(centerX, centerY, R, rec.start, rec.end, rec.sweep);
+          }
+
 
           arcLayer
             .append("path")
-            .attr("d", pathD)
+            .attr("d", pathFromArcRecord(a))
             .attr("fill", "none")
             .attr("stroke", stroke)
             .attr("stroke-width", width);

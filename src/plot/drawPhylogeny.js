@@ -480,7 +480,10 @@ export default function drawPhylogeny(
       lineLayer.selectAll("*").remove();
       arcLayer.selectAll("*").remove();
 
-      let cur = typeof target === "number" ? byId.get(target) : target;
+      let cur = (typeof target === "number" || typeof target === "string")
+        ? byId.get(target)
+        : target;
+
       if (!cur) return;
 
       let first = true;

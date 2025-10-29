@@ -452,6 +452,9 @@ function getChildArcsFan(pd) {
   const TAU = Math.PI * 2;
   const norm = (t) => ((t % TAU) + TAU) % TAU;
 
+  const ccwDelta = (a0, a1) => (a1 - a0 + TAU) % TAU;
+  const cwDelta = (a0, a1) => (a0 - a1 + TAU) % TAU;
+
   // Circular midpoint that travels CCW from a -> b by half the CCW span
   function midCCW(a, b) {
     const d = (b - a + TAU) % TAU; // CCW delta in [0, 2π)
@@ -497,20 +500,25 @@ function getChildArcsFan(pd) {
 
     for (let i = 0; i < N; i++) {
       const prev = A[(i - 1 + N) % N];
-      const cur  = A[i];
+      const cur = A[i];
       const next = A[(i + 1) % N];
 
       // “fan” wedge around the child: midpoint(prev→cur) .. midpoint(cur→next), CCW
       const start = midCCW(prev.a, cur.a);
-      const end   = midCCW(cur.a, next.a);
+      const end = midCCW(cur.a, next.a);
+
+      // Choose the **shorter** sweep (0 = CCW, 1 = CW in our math-angle convention)
+      const ccw = ccwDelta(start, end);
+      const cw = cwDelta(start, end);
+      const sweep = ccw <= cw ? 0 : 1;
 
       child_arcs.push({
         parentId: pid,
-        childId:  cur.id,
+        childId: cur.id,
         radius,
         start,
         end,
-        sweep: 0 // CCW (consistent with describeArcSweep and your y-flip)
+        sweep
       });
     }
   }

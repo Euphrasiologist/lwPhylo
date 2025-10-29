@@ -1,4 +1,3 @@
-// src/radial/radialLayout.js
 import radialData from "./radialData.js";
 import getRadii from "./getRadii.js";
 import getRadiiFromPd from "./getRadiiFromPd.js";
@@ -53,7 +52,7 @@ export default function radialLayout(node, opts = {}) {
 
   // per-child arcs for half-arc highlighting if you already use them
   let child_arcs = [];
-  if (opts.arcsStyle === "fan") {
+  if (arcsStyle === "fan") {
     child_arcs = getChildArcsFan(pd);
   } else {
     child_arcs = getChildArcs(pd);

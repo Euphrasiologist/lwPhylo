@@ -158,6 +158,13 @@ const TAU$1 = Math.PI * 2;
 const norm$1 = (t) => ((t % TAU$1) + TAU$1) % TAU$1;
 
 function describeArcSweep(cx, cy, r, a0, a1, sweep /*0=CCW,1=CW*/) {
+  console.log("describeArcSweep input:", {
+    cx, cy, r,
+    a0Deg: (a0 * 180 / Math.PI).toFixed(2),
+    a1Deg: (a1 * 180 / Math.PI).toFixed(2),
+    sweep
+  });
+
   const delta = sweep === 0 ? norm$1(a1 - a0) : norm$1(a0 - a1);
   if (!(r > 0) || delta < 1e-9) return "";
   const largeArcFlag = delta > Math.PI ? 1 : 0;
@@ -1641,6 +1648,14 @@ function drawPhylogeny(
         }
 
         if (a) {
+          console.log("Drawing arc:", {
+            childId: cur.thisId,
+            startDeg: (a.start * 180 / Math.PI).toFixed(2),
+            endDeg: (a.end * 180 / Math.PI).toFixed(2),
+            sweep: a.sweep,
+            radius: a.radius
+          });
+
           arcLayer
             .append("path")
             .attr("d", pathFromArcRecord(a))

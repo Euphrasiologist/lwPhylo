@@ -522,6 +522,14 @@ export default function drawPhylogeny(
         }
 
         if (a) {
+          console.log("Drawing arc:", {
+            childId: cur.thisId,
+            startDeg: (a.start * 180 / Math.PI).toFixed(2),
+            endDeg: (a.end * 180 / Math.PI).toFixed(2),
+            sweep: a.sweep,
+            radius: a.radius
+          });
+
           arcLayer
             .append("path")
             .attr("d", pathFromArcRecord(a))

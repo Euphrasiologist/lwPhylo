@@ -329,7 +329,8 @@ export default function drawPhylogeny(
             radiusPx(d.radius),
             d.start,
             d.end,
-            d.sweep
+            d.sweep,
+            d.largeArc,
           )
       )
       .attr("fill", "none")
@@ -518,7 +519,7 @@ export default function drawPhylogeny(
           const R = radiusPx(rec.radius);
           return rec.sweep == null
             ? lw.describeArc(centerX, centerY, R, rec.start, rec.end)
-            : lw.describeArcSweep(centerX, centerY, R, rec.start, rec.end, rec.sweep);
+            : lw.describeArcSweep(centerX, centerY, R, rec.start, rec.end, rec.sweep, a.largeArc);
         }
 
         if (a) {

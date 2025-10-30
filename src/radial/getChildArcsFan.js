@@ -2,19 +2,16 @@ export default function getChildArcsFan(pd) {
   const TAU = Math.PI * 2;
   const norm = (t) => ((t % TAU) + TAU) % TAU;
 
-  // Circular midpoint that travels CCW from a -> b by half the CCW span
   function midCCW(a, b) {
-    const d = (b - a + TAU) % TAU; // CCW delta in [0, 2π)
+    const d = (b - a + TAU) % TAU;
     return norm(a + d / 2);
   }
 
   const key = (x) => (typeof x === "string" ? +x : x);
-
   const byId = new Map(pd.map(d => [key(d.thisId), d]));
   const childrenByParent = new Map(
     pd.map(d => [
       key(d.thisId),
-      // normalize children to numeric IDs; drop anything we can't resolve
       (d.children || [])
         .map(ch => (typeof ch === "object" ? ch.thisId : ch))
         .map(key)
@@ -29,7 +26,6 @@ export default function getChildArcsFan(pd) {
     const kids = childrenByParent.get(pid) || [];
     if (kids.length < 2) continue;
 
-    // Sort children by angle (normalized) around the circle
     const A = kids
       .map(id => {
         const node = byId.get(id);
@@ -53,9 +49,9 @@ export default function getChildArcsFan(pd) {
       const start = midCCW(prev.a, cur.a);
       const end = midCCW(cur.a, next.a);
 
-      // Use SVG-conforming sweep logic
+      const sweep = 1; // always clockwise
       const delta = (end - start + TAU) % TAU;
-      const sweep = delta > Math.PI ? 0 : 1;
+      const largeArc = delta > Math.PI ? 1 : 0;
 
       child_arcs.push({
         parentId: pid,
@@ -63,10 +59,10 @@ export default function getChildArcsFan(pd) {
         radius,
         start,
         end,
-        sweep
+        sweep,
+        largeArc
       });
     }
-
   }
 
   return child_arcs;

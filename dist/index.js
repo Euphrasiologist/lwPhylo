@@ -639,8 +639,6 @@ function getChildArcsFan(pd) {
   return child_arcs;
 }
 
-// src/radial/radialLayout.js
-
 /**
  * radialLayout(node, opts?)
  * opts:
@@ -686,7 +684,7 @@ function radialLayout(node, opts = {}) {
 
   // per-child arcs for half-arc highlighting if you already use them
   let child_arcs = [];
-  if (opts.arcsStyle === "fan") {
+  if (arcsStyle === "fan") {
     child_arcs = getChildArcsFan(pd);
   } else {
     child_arcs = getChildArcs(pd);
@@ -1601,7 +1599,10 @@ function drawPhylogeny(
       lineLayer.selectAll("*").remove();
       arcLayer.selectAll("*").remove();
 
-      let cur = typeof target === "number" ? byId.get(target) : target;
+      let cur = (typeof target === "number" || typeof target === "string")
+        ? byId.get(target)
+        : target;
+
       if (!cur) return;
 
       let first = true;

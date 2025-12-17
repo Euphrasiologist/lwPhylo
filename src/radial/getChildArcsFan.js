@@ -2,12 +2,14 @@ export default function getChildArcsFan(pd) {
   const TAU = Math.PI * 2;
   const norm = (t) => ((t % TAU) + TAU) % TAU;
 
+  // Circular midpoint that travels CCW from a -> b by half the CCW span
   function midCCW(a, b) {
-    const d = (b - a + TAU) % TAU;
+    const d = (b - a + TAU) % TAU; // CCW delta in [0, 2π)
     return norm(a + d / 2);
   }
 
   const key = (x) => (typeof x === "string" ? +x : x);
+
   const byId = new Map(pd.map(d => [key(d.thisId), d]));
   const childrenByParent = new Map(
     pd.map(d => [
@@ -49,9 +51,9 @@ export default function getChildArcsFan(pd) {
       const start = midCCW(prev.a, cur.a);
       const end = midCCW(cur.a, next.a);
 
-      const sweep = 1; // always clockwise
-      const delta = (end - start + TAU) % TAU;
-      const largeArc = delta > Math.PI ? 1 : 0;
+      const deltaCCW = (end - start + TAU) % TAU;
+      const sweep = "ccw";
+      const largeArc = deltaCCW > Math.PI ? 1 : 0;
 
       child_arcs.push({
         parentId: pid,

@@ -53,7 +53,7 @@ function describeArc(cx, cy, radius, startAngle, endAngle) {
   }
 
   const largeArcFlag = delta > Math.PI ? 1 : 0; // should be 0 for “shortest”, but keep for safety
-  const sweepFlag = 0;                          // CCW
+  const sweepFlag = 1;                          // CCW
 
   const p0 = polarToCartesian(cx, cy, radius, a0);
   const p1 = polarToCartesian(cx, cy, radius, a1);
@@ -62,25 +62,26 @@ function describeArc(cx, cy, radius, startAngle, endAngle) {
 }
 
 // src/radial/describeArcSweep.js
-const TAU$1 = Math.PI * 2;
-const norm$1 = (t) => ((t % TAU$1) + TAU$1) % TAU$1;
+// IMPORTANT: angles are in "math space" (increasing = CCW).
+// Because we map y as (cy - r*sin(a)), SVG sweepFlag must be inverted:
+//   math CCW -> svg sweepFlag = 1
+//   math CW  -> svg sweepFlag = 0
+function describeArcSweep(
+  cx, cy, r,
+  a0, a1,
+  mathSweep = "ccw",          // "ccw" | "cw"
+  largeArcFlag = 0
+) {
+  if (!(r > 0)) return "";
 
-function describeArcSweep(cx, cy, r, a0, a1, sweep /*0=CCW,1=CW*/) {
-  console.log("describeArcSweep input:", {
-    cx, cy, r,
-    a0Deg: (a0 * 180 / Math.PI).toFixed(2),
-    a1Deg: (a1 * 180 / Math.PI).toFixed(2),
-    sweep
-  });
+  const x0 = cx + r * Math.cos(a0);
+  const y0 = cy - r * Math.sin(a0);
+  const x1 = cx + r * Math.cos(a1);
+  const y1 = cy - r * Math.sin(a1);
 
-  const delta = sweep === 0 ? norm$1(a1 - a0) : norm$1(a0 - a1);
-  if (!(r > 0) || delta < 1e-9) return "";
-  const largeArcFlag = delta > Math.PI ? 1 : 0;
+  const svgSweepFlag = (mathSweep === "ccw") ? 1 : 0;
 
-  const x0 = cx + r * Math.cos(a0), y0 = cy - r * Math.sin(a0);
-  const x1 = cx + r * Math.cos(a1), y1 = cy - r * Math.sin(a1);
-
-  return `M ${x0} ${y0} A ${r} ${r} 0 ${largeArcFlag} ${sweep} ${x1} ${y1}`;
+  return `M ${x0} ${y0} A ${r} ${r} 0 ${largeArcFlag} ${svgSweepFlag} ${x1} ${y1}`;
 }
 
 /**
@@ -357,16 +358,13 @@ function getArcs(pd) {
 }
 
 /**
- * Build APE-like block arcs per internal parent:
- *  radius = parent.r
- *  start = first child's angle
- *  end   = last child's angle
- *  sweep = 0 (CCW) if end>=start; 1 (CW) if wrapped across 2π
- *
- * @param {Array} pd nodes with {thisId,parentId,children,angle,r}
- * @returns {Array} [{parentId,thisId,radius,start,end,sweep}]
+ * APE-like block arcs per internal parent.
+ * Draw CCW from first child's angle to last child's angle (wrapping allowed).
  */
 function getArcsFan(pd) {
+  const TAU = Math.PI * 2;
+  const norm = (t) => ((t % TAU) + TAU) % TAU;
+
   const byId = new Map(pd.map(d => [d.thisId, d]));
   const arcs = [];
 
@@ -378,9 +376,11 @@ function getArcsFan(pd) {
     const last  = byId.get(c[c.length - 1])?.angle;
     if (first == null || last == null) continue;
 
-    const start = first;
-    const end = last;
-    const sweep = end >= start ? 0 : 1; // CW if wrapped
+    const start = norm(first);
+    const end   = norm(last);
+
+    const deltaCCW = (end - start + TAU) % TAU;
+    if (deltaCCW < 1e-9) continue;
 
     arcs.push({
       parentId: p.parentId,
@@ -388,9 +388,11 @@ function getArcsFan(pd) {
       radius: p.r,
       start,
       end,
-      sweep
+      sweep: "ccw",                 // << math sweep
+      largeArc: deltaCCW > Math.PI ? 1 : 0
     });
   }
+
   return arcs;
 }
 
@@ -492,7 +494,6 @@ function getChildArcsFan(pd) {
   const childrenByParent = new Map(
     pd.map(d => [
       key(d.thisId),
-      // normalize children to numeric IDs; drop anything we can't resolve
       (d.children || [])
         .map(ch => (typeof ch === "object" ? ch.thisId : ch))
         .map(key)
@@ -507,7 +508,6 @@ function getChildArcsFan(pd) {
     const kids = childrenByParent.get(pid) || [];
     if (kids.length < 2) continue;
 
-    // Sort children by angle (normalized) around the circle
     const A = kids
       .map(id => {
         const node = byId.get(id);
@@ -531,9 +531,9 @@ function getChildArcsFan(pd) {
       const start = midCCW(prev.a, cur.a);
       const end = midCCW(cur.a, next.a);
 
-      // Use SVG-conforming sweep logic
-      const delta = (end - start + TAU) % TAU;
-      const sweep = delta > Math.PI ? 0 : 1;
+      const deltaCCW = (end - start + TAU) % TAU;
+      const sweep = "ccw";
+      const largeArc = deltaCCW > Math.PI ? 1 : 0;
 
       child_arcs.push({
         parentId: pid,
@@ -541,10 +541,10 @@ function getChildArcsFan(pd) {
         radius,
         start,
         end,
-        sweep
+        sweep,
+        largeArc
       });
     }
-
   }
 
   return child_arcs;
@@ -1305,7 +1305,8 @@ function drawPhylogeny(
             radiusPx(d.radius),
             d.start,
             d.end,
-            d.sweep
+            d.sweep ?? "ccw",
+            d.largeArc ?? 0,
           )
       )
       .attr("fill", "none")
@@ -1494,7 +1495,7 @@ function drawPhylogeny(
           const R = radiusPx(rec.radius);
           return rec.sweep == null
             ? describeArc(centerX, centerY, R, rec.start, rec.end)
-            : describeArcSweep(centerX, centerY, R, rec.start, rec.end, rec.sweep);
+            : describeArcSweep(centerX, centerY, R, rec.start, rec.end, rec.sweep ?? "ccw", rec.largeArc ?? 0);
         }
 
         if (a) {

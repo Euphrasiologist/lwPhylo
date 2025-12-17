@@ -1,13 +1,14 @@
 // src/radial/describeArcSweep.js
-export default function describeArcSweep(cx, cy, r, a0, a1, sweep = 1, largeArcFlag = 0) {
-  console.log("describeArcSweep input:", {
-    cx, cy, r,
-    a0Deg: (a0 * 180 / Math.PI).toFixed(2),
-    a1Deg: (a1 * 180 / Math.PI).toFixed(2),
-    sweep,
-    largeArcFlag
-  });
-
+// IMPORTANT: angles are in "math space" (increasing = CCW).
+// Because we map y as (cy - r*sin(a)), SVG sweepFlag must be inverted:
+//   math CCW -> svg sweepFlag = 1
+//   math CW  -> svg sweepFlag = 0
+export default function describeArcSweep(
+  cx, cy, r,
+  a0, a1,
+  mathSweep = "ccw",          // "ccw" | "cw"
+  largeArcFlag = 0
+) {
   if (!(r > 0)) return "";
 
   const x0 = cx + r * Math.cos(a0);
@@ -15,6 +16,8 @@ export default function describeArcSweep(cx, cy, r, a0, a1, sweep = 1, largeArcF
   const x1 = cx + r * Math.cos(a1);
   const y1 = cy - r * Math.sin(a1);
 
-  return `M ${x0} ${y0} A ${r} ${r} 0 ${largeArcFlag} ${sweep} ${x1} ${y1}`;
+  const svgSweepFlag = (mathSweep === "ccw") ? 1 : 0;
+
+  return `M ${x0} ${y0} A ${r} ${r} 0 ${largeArcFlag} ${svgSweepFlag} ${x1} ${y1}`;
 }
 

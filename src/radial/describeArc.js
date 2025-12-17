@@ -27,7 +27,7 @@ export default function describeArc(cx, cy, radius, startAngle, endAngle) {
   }
 
   const largeArcFlag = delta > Math.PI ? 1 : 0; // should be 0 for “shortest”, but keep for safety
-  const sweepFlag = 0;                          // CCW
+  const sweepFlag = 1;                          // CCW
 
   const p0 = polarToCartesian(cx, cy, radius, a0);
   const p1 = polarToCartesian(cx, cy, radius, a1);

@@ -1063,6 +1063,7 @@ function drawPhylogeny(
     strokeWidth = 1, // for the phylogeny branches
     radialMode = "outer", // "outer" (co-circular tips) or "phylo" (true terminals)
     tipLabels = true,
+    labelFontSize = 10, // font size (px) for tip labels
     showTooltips = true,
     tooltipFormatter = (d, rtt) =>
       `${d.thisLabel ?? "(unnamed)"}\nroot→tip: ${(+rtt).toFixed(4)}`,
@@ -1204,7 +1205,7 @@ function drawPhylogeny(
         .attr("x", (d) => xScale(d.x1) + 4)
         .attr("y", (d) => yScale(d.y1))
         .attr("dy", "0.32em")
-        .attr("font-size", 10)
+        .attr("font-size", labelFontSize)
         .text((d) => d.thisLabel?.replace(/_/g, " ") ?? "");
 
       if (showTooltips) {
@@ -1501,7 +1502,7 @@ function drawPhylogeny(
             .attr("x", xoff)
             .attr("alignment-baseline", "middle")
             .attr("text-anchor", anchor)
-            .attr("font-size", 10)
+            .attr("font-size", labelFontSize)
             .attr("fill", "black")
             .text((d) => d.thisLabel?.replace(/_/g, " ") ?? "");
         });
@@ -1752,7 +1753,7 @@ function drawPhylogeny(
             .attr("x", xOffset)
             .attr("alignment-baseline", "middle")
             .attr("text-anchor", anchor)
-            .attr("font-size", 10)
+            .attr("font-size", labelFontSize)
             .attr("fill", "black")
             .text(d.thisLabel?.replace(/_/g, " ") ?? "");
         });

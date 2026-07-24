@@ -68,3 +68,17 @@ test("highlightTips draws an extra static path by tip label", () => {
   assert.equal(staticLines(withoutHighlight), 0);
   assert.ok(staticLines(withHighlight) > 0);
 });
+
+for (const layout of ["rect", "radial", "unrooted"]) {
+  test(`labelFontSize controls tip label text size [${layout}]`, () => {
+    const svg = drawPhylogeny("((A:0.1,B:0.2):0.3,C:0.4);", {
+      layout,
+      width: 400,
+      height: 400,
+      labelFontSize: 22
+    });
+    const labels = svg.querySelectorAll(".phylo_labels text");
+    assert.ok(labels.length > 0);
+    labels.forEach((el) => assert.equal(el.getAttribute("font-size"), "22"));
+  });
+}

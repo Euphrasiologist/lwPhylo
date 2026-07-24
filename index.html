@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lwPhylo — lightweight phylogeny plotting for the browser</title>
+<meta name="description" content="lwPhylo is a lightweight, dependency-light JavaScript library for parsing Newick trees and plotting rectangular, radial and unrooted phylogenies with D3.">
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-raised: #f6f7f9;
+    --border: #e3e5e8;
+    --text: #1c1f24;
+    --text-muted: #5b6270;
+    --accent: #2f6f4f;
+    --accent-soft: #e9f3ee;
+    --code-bg: #f2f3f5;
+    --link: #1f6feb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;
+      --bg-raised: #171b21;
+      --border: #2a2f37;
+      --text: #e6e8eb;
+      --text-muted: #9aa2ad;
+      --accent: #6fcf9b;
+      --accent-soft: #14261d;
+      --code-bg: #1a1e24;
+      --link: #6fb1ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+  header.hero {
+    border-bottom: 1px solid var(--border);
+    padding: 56px 0 40px;
+  }
+  header.hero h1 {
+    font-size: 2.4rem;
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
+  }
+  header.hero .tag {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    max-width: 640px;
+    margin: 0 0 20px;
+  }
+  .badges { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+  .badges a img { display: block; }
+  .cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    display: inline-block;
+    padding: 9px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.92rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  section { padding: 44px 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+  h2 {
+    font-size: 1.5rem;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  section > p.lede {
+    color: var(--text-muted);
+    max-width: 700px;
+    margin: 0 0 28px;
+  }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+  }
+  .feature {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 18px 20px;
+  }
+  .feature h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+  }
+  .feature p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre code { background: none; padding: 0; }
+  .code-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+  .code-tab {
+    font-size: 0.8rem;
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-raised);
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .code-tab[aria-selected="true"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .code-panel { display: none; }
+  .code-panel.active { display: block; }
+
+  .playground {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 760px) {
+    .playground { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  textarea, select, input[type="text"] {
+    width: 100%;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.88rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  textarea { resize: vertical; min-height: 100px; }
+  select, input[type="text"] { font-family: inherit; }
+  .radio-row { display: flex; gap: 14px; font-size: 0.85rem; }
+  .radio-row label { display: flex; align-items: center; gap: 5px; font-weight: 400; text-transform: none; letter-spacing: normal; color: var(--text); }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .preset-btn {
+    font-size: 0.78rem;
+    padding: 5px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .preset-btn:hover { color: var(--text); border-color: var(--accent); }
+  #render-btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.92rem;
+    cursor: pointer;
+  }
+  #render-btn:hover { opacity: 0.92; }
+  .stage {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    min-height: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    padding: 10px;
+  }
+  .stage svg { max-width: 100%; height: auto; }
+  #render-error {
+    color: #d1453a;
+    font-size: 0.85rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    padding: 8px 10px;
+    display: none;
+  }
+
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .gallery figure {
+    margin: 0;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .gallery .gallery-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    min-height: 280px;
+  }
+  .gallery svg { max-width: 100%; height: auto; }
+  .gallery figcaption {
+    padding: 10px 14px 14px;
+    border-top: 1px solid var(--border);
+  }
+  .gallery figcaption strong { display: block; font-size: 0.9rem; margin-bottom: 3px; }
+  .gallery figcaption span { font-size: 0.8rem; color: var(--text-muted); }
+
+  footer {
+    padding: 32px 0 60px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+  footer a { color: var(--link); }
+  a { color: var(--link); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>lwPhylo</h1>
+    <p class="tag">A lightweight, dependency-light JavaScript library for parsing Newick trees and plotting rectangular, radial, and unrooted phylogenies — built to hand straight to D3.</p>
+    <div class="cta-row">
+      <a class="btn primary" href="https://github.com/Euphrasiologist/lwPhylo">View on GitHub</a>
+      <a class="btn" href="https://www.npmjs.com/package/@euphrasiologist/lwphylo">npm package</a>
+      <a class="btn" href="https://observablehq.com/@euphrasiologist/lwphylo-tutorial">Observable tutorial</a>
+    </div>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <h2>What it does</h2>
+    <p class="lede">One function turns a Newick string into an SVG tree. Everything else — layout math, tooltips, root→tip highlighting — is handled for you, but the lower-level layout functions are exported too if you want to drive D3 yourself.</p>
+    <div class="feature-grid">
+      <div class="feature">
+        <h3>Three layouts</h3>
+        <p>Rectangular (cladogram/phylogram), radial (fan), and unrooted (equal-angle) — pick one with a single option.</p>
+      </div>
+      <div class="feature">
+        <h3>Zero required dependencies</h3>
+        <p>The parser and layout math have no dependencies at all. D3 is the only peer dependency, used purely for rendering.</p>
+      </div>
+      <div class="feature">
+        <h3>Robust Newick parsing</h3>
+        <p>Handles missing branch lengths, unlabeled internal nodes, polytomies, scientific notation, and missing trailing semicolons.</p>
+      </div>
+      <div class="feature">
+        <h3>Interactive by default</h3>
+        <p>Hover a tip to trace its root→tip path; pass <code>highlightTips</code> to pin specific paths permanently.</p>
+      </div>
+      <div class="feature">
+        <h3>Tooltips out of the box</h3>
+        <p>Every tip gets a formatted tooltip with its label and cumulative root→tip distance — customisable via <code>tooltipFormatter</code>.</p>
+      </div>
+      <div class="feature">
+        <h3>Escape hatches</h3>
+        <p>Need more control? <code>readTree()</code>, <code>rectangleLayout()</code>, <code>radialLayout()</code>, and <code>unrooted()</code> are all exported directly.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="quickstart">
+  <div class="wrap">
+    <h2>Quick start</h2>
+    <p class="lede">Two ways to get a plot on the page: install from npm, or drop in the browser build via a script tag.</p>
+
+    <div class="code-tabs" role="tablist">
+      <button class="code-tab" data-tab="npm" aria-selected="true">npm / bundler</button>
+      <button class="code-tab" data-tab="script">Script tag</button>
+    </div>
+
+    <div class="code-panel active" data-panel="npm">
+<pre><code>npm install @euphrasiologist/lwphylo d3
+
+import drawPhylogeny from "@euphrasiologist/lwphylo/draw";
+
+const newick = "((A:0.1,B:0.2):0.3,(C:0.15,D:0.1):0.2);";
+
+document.getElementById("tree").appendChild(
+  drawPhylogeny(newick, {
+    layout: "radial",   // "rect" | "radial" | "unrooted"
+    width: 500,
+    height: 500,
+    highlightTips: ["A", "D"]
+  })
+);</code></pre>
+    </div>
+
+    <div class="code-panel" data-panel="script">
+<pre><code>&lt;script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"&gt;&lt;/script&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/@euphrasiologist/lwphylo/dist/drawPhylogeny.umd.js"&gt;&lt;/script&gt;
+
+&lt;div id="tree"&gt;&lt;/div&gt;
+&lt;script&gt;
+  const newick = "((A:0.1,B:0.2):0.3,(C:0.15,D:0.1):0.2);";
+  document.getElementById("tree").appendChild(
+    lwPhyloPlot(newick, { layout: "rect", width: 500, height: 400 })
+  );
+&lt;/script&gt;</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="playground">
+  <div class="wrap">
+    <h2>Try it</h2>
+    <p class="lede">Paste your own Newick string, or start from a preset. Renders live in your browser using this repo's own build — nothing is sent anywhere.</p>
+
+    <div class="playground">
+      <div class="panel">
+        <div class="presets">
+          <button class="preset-btn" data-preset="branches">With branch lengths</button>
+          <button class="preset-btn" data-preset="topology">Topology only</button>
+          <button class="preset-btn" data-preset="polytomy">Polytomy</button>
+        </div>
+        <div class="field">
+          <label for="newick-input">Newick string</label>
+          <textarea id="newick-input" spellcheck="false">((Human:0.05,Chimp:0.06):0.03,(Mouse:0.15,Rat:0.12):0.1,Chicken:0.2);</textarea>
+        </div>
+        <div class="field">
+          <label for="layout-select">Layout</label>
+          <select id="layout-select">
+            <option value="rect">Rectangular</option>
+            <option value="radial" selected>Radial</option>
+            <option value="unrooted">Unrooted</option>
+          </select>
+        </div>
+        <div class="field" id="radial-mode-field">
+          <label>Radial tip mode</label>
+          <div class="radio-row">
+            <label><input type="radio" name="radial-mode" value="outer" checked> outer (co-circular)</label>
+            <label><input type="radio" name="radial-mode" value="phylo"> phylo (true depth)</label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="highlight-input">Highlight tips (comma-separated, optional)</label>
+          <input type="text" id="highlight-input" placeholder="e.g. Human, Mouse">
+        </div>
+        <button id="render-btn">Render</button>
+        <div id="render-error"></div>
+      </div>
+      <div class="stage" id="playground-stage"></div>
+    </div>
+  </div>
+</section>
+
+<section id="gallery">
+  <div class="wrap">
+    <h2>Gallery</h2>
+    <p class="lede">The same underlying tree, three ways — plus a topology-only tree (no branch lengths at all) to show the parser holds up without them.</p>
+    <div class="gallery">
+      <figure>
+        <div class="gallery-stage" id="gallery-rect"></div>
+        <figcaption><strong>Rectangular</strong><span>layout: "rect", with two highlighted tips</span></figcaption>
+      </figure>
+      <figure>
+        <div class="gallery-stage" id="gallery-radial"></div>
+        <figcaption><strong>Radial</strong><span>layout: "radial", outer mode</span></figcaption>
+      </figure>
+      <figure>
+        <div class="gallery-stage" id="gallery-unrooted"></div>
+        <figcaption><strong>Unrooted</strong><span>layout: "unrooted", equal-angle</span></figcaption>
+      </figure>
+      <figure>
+        <div class="gallery-stage" id="gallery-topology"></div>
+        <figcaption><strong>Topology only</strong><span>no branch lengths anywhere in the input</span></figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>lwPhylo is released under the ISC license. Original tree layout algorithms adapted from <a href="https://github.com/ArtPoon/ggfree">ggfree</a>. See the <a href="https://github.com/Euphrasiologist/lwPhylo#readme">README</a> for the full API, or the <a href="https://observablehq.com/@euphrasiologist/lwphylo-tutorial">Observable tutorial</a> for a walkthrough of the layout functions.</p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="./dist/drawPhylogeny.umd.js"></script>
+<script>
+(function () {
+  const drawPhylogeny = window.lwPhyloPlot;
+
+  // ---- code tabs ----
+  document.querySelectorAll(".code-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".code-tab").forEach((t) => t.setAttribute("aria-selected", "false"));
+      document.querySelectorAll(".code-panel").forEach((p) => p.classList.remove("active"));
+      tab.setAttribute("aria-selected", "true");
+      document.querySelector(`.code-panel[data-panel="${tab.dataset.tab}"]`).classList.add("active");
+    });
+  });
+
+  // ---- playground ----
+  const presets = {
+    branches: "((Human:0.05,Chimp:0.06):0.03,(Mouse:0.15,Rat:0.12):0.1,Chicken:0.2);",
+    topology: "((Human,Chimp),(Mouse,Rat),Chicken);",
+    polytomy: "(Human:0.1,Chimp:0.1,Mouse:0.1,Rat:0.1,Chicken:0.1);"
+  };
+
+  const newickInput = document.getElementById("newick-input");
+  const layoutSelect = document.getElementById("layout-select");
+  const highlightInput = document.getElementById("highlight-input");
+  const radialModeField = document.getElementById("radial-mode-field");
+  const stage = document.getElementById("playground-stage");
+  const errorBox = document.getElementById("render-error");
+
+  document.querySelectorAll(".preset-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      newickInput.value = presets[btn.dataset.preset];
+      render();
+    });
+  });
+
+  layoutSelect.addEventListener("change", () => {
+    radialModeField.style.display = layoutSelect.value === "radial" ? "" : "none";
+    render();
+  });
+
+  function currentSize() {
+    const box = stage.getBoundingClientRect();
+    const side = Math.max(280, Math.min(500, box.width - 20));
+    return layoutSelect.value === "radial"
+      ? { width: side, height: side }
+      : { width: Math.max(320, box.width - 20), height: 420 };
+  }
+
+  function render() {
+    errorBox.style.display = "none";
+    stage.innerHTML = "";
+    const highlightTips = highlightInput.value
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const radialMode = document.querySelector('input[name="radial-mode"]:checked').value;
+    const { width, height } = currentSize();
+
+    try {
+      const svg = drawPhylogeny(newickInput.value, {
+        layout: layoutSelect.value,
+        width,
+        height,
+        radialMode,
+        highlightTips
+      });
+      stage.appendChild(svg);
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.style.display = "block";
+    }
+  }
+
+  document.getElementById("render-btn").addEventListener("click", render);
+  window.addEventListener("resize", () => render());
+  render();
+
+  // ---- gallery ----
+  const galleryTree = "((Human:0.05,Chimp:0.06):0.03,(Mouse:0.15,Rat:0.12):0.1,Chicken:0.2);";
+  const galleryTopologyOnly = "((Human,Chimp),(Mouse,Rat),Chicken);";
+
+  document.getElementById("gallery-rect").appendChild(
+    drawPhylogeny(galleryTree, { layout: "rect", width: 380, height: 260, highlightTips: ["Human", "Rat"] })
+  );
+  document.getElementById("gallery-radial").appendChild(
+    drawPhylogeny(galleryTree, { layout: "radial", width: 300, height: 300, highlightTips: ["Human", "Rat"] })
+  );
+  document.getElementById("gallery-unrooted").appendChild(
+    drawPhylogeny(galleryTree, { layout: "unrooted", width: 340, height: 280 })
+  );
+  document.getElementById("gallery-topology").appendChild(
+    drawPhylogeny(galleryTopologyOnly, { layout: "rect", width: 380, height: 260 })
+  );
+})();
+</script>
+
+</body>
+</html>

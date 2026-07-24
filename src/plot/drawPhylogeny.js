@@ -59,7 +59,7 @@ export default function drawPhylogeny(
     const tips = horizontal.filter((d) => d.isTip);
 
     // indices & root→tip getter
-    const byId = new Map(horizontal.map((d) => [d.thisId, d]));
+    const byId = new Map(tree_df.data.map((d) => [d.thisId, d])); // includes root
     const tipById = new Map(tips.map((d) => [d.thisId, d]));
     const tipByLabel = new Map(tips.map((d) => [d.thisLabel, d]));
     const rootToTip = makeRootToTipGetter(byId, { prefer: "x1" });
@@ -133,6 +133,7 @@ export default function drawPhylogeny(
     // interactive root→tip highlight (rect) on dot hover
     tipDots
       .on("mouseenter", function(_event, d) {
+        hoverLayer.selectAll("*").remove();
         drawRectPath(d.thisId, hoverLayer, hoverStroke, hoverWidth);
         d3.select(this).attr("r", 4);
       })
@@ -163,6 +164,7 @@ export default function drawPhylogeny(
 
       labels
         .on("mouseenter", function(_event, d) {
+          hoverLayer.selectAll("*").remove();
           drawRectPath(d.thisId, hoverLayer, hoverStroke, hoverWidth);
           d3.select(this).attr("font-weight", 600);
         })
@@ -189,7 +191,6 @@ export default function drawPhylogeny(
 
     // helper to draw root→tip for rect (both vertical+horizontal)
     function drawRectPath(tipId, layer, stroke, width) {
-      layer.selectAll("*").remove();
       let cur = byId.get(tipId);
       while (cur && cur.parentId != null) {
         const parent = byId.get(cur.parentId);
@@ -246,10 +247,14 @@ export default function drawPhylogeny(
     const END_CAP = 0;
 
     // ===== SCALES / BOUNDS =====
-    const maxRadius = d3.max(rad.data, (d) => d.r) ?? 0;
-    const scaleRadial = maxRadius + 2 * radialMargin;
     const w = width,
       h = height;
+    const maxRadius = d3.max(rad.data, (d) => d.r) ?? 0;
+    // radialMargin is in pixels: tips sit (radialMargin) px from the SVG edge.
+    // Derive the data-space scale so that radiusPx(maxRadius) = w/2 - radialMargin.
+    const scaleRadial = maxRadius > 0
+      ? maxRadius * (w / 2) / (w / 2 - radialMargin)
+      : 1;
     const centerX = w / 2,
       centerY = h / 2;
 
@@ -459,6 +464,8 @@ export default function drawPhylogeny(
       // label hover
       labels
         .on("mouseenter", function(_event, d) {
+          hoverLines.selectAll("*").remove();
+          hoverArcs.selectAll("*").remove();
           drawRadialPath(d, hoverLines, hoverArcs, hoverStroke, hoverWidth);
           d3.select(this).select("text").attr("font-weight", 600);
         })
@@ -478,9 +485,6 @@ export default function drawPhylogeny(
       width = 3
     ) {
       // target may be a tip node *or* a numeric tip id
-      lineLayer.selectAll("*").remove();
-      arcLayer.selectAll("*").remove();
-
       let cur = (typeof target === "number" || typeof target === "string")
         ? byId.get(target)
         : target;
@@ -523,14 +527,6 @@ export default function drawPhylogeny(
         }
 
         if (a) {
-          console.log("Drawing arc:", {
-            childId: cur.thisId,
-            startDeg: (a.start * 180 / Math.PI).toFixed(2),
-            endDeg: (a.end * 180 / Math.PI).toFixed(2),
-            sweep: a.sweep,
-            radius: a.radius
-          });
-
           arcLayer
             .append("path")
             .attr("d", pathFromArcRecord(a))
@@ -547,6 +543,8 @@ export default function drawPhylogeny(
     // tip dot hover
     tipDots
       .on("mouseenter", function(_event, d) {
+        hoverLines.selectAll("*").remove();
+        hoverArcs.selectAll("*").remove();
         drawRadialPath(d, hoverLines, hoverArcs, hoverStroke, hoverWidth);
         d3.select(this).attr("r", DOT_R + 2);
       })

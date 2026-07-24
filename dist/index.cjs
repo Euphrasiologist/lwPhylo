@@ -165,8 +165,8 @@ function describeArc(cx, cy, radius, startAngle, endAngle) {
     return `M ${p.x} ${p.y}`;                   // degenerate span → no arc
   }
 
-  const largeArcFlag = delta > Math.PI ? 1 : 0; // should be 0 for “shortest”, but keep for safety
-  const sweepFlag = 1;                          // CCW
+  const largeArcFlag = delta > Math.PI ? 1 : 0;
+  const sweepFlag = 0;                          // CCW in our y-flipped coords: math-CCW = decreasing SVG angle = sweepFlag 0
 
   const p0 = polarToCartesian(cx, cy, radius, a0);
   const p1 = polarToCartesian(cx, cy, radius, a1);
@@ -176,9 +176,10 @@ function describeArc(cx, cy, radius, startAngle, endAngle) {
 
 // src/radial/describeArcSweep.js
 // IMPORTANT: angles are in "math space" (increasing = CCW).
-// Because we map y as (cy - r*sin(a)), SVG sweepFlag must be inverted:
-//   math CCW -> svg sweepFlag = 1
-//   math CW  -> svg sweepFlag = 0
+// Because we map y as (cy - r*sin(a)), our math angle t maps to SVG angle -t.
+// Increasing t (math CCW) = decreasing SVG angle = sweepFlag 0 (negative direction).
+//   math CCW -> svg sweepFlag = 0
+//   math CW  -> svg sweepFlag = 1
 function describeArcSweep(
   cx, cy, r,
   a0, a1,
@@ -192,7 +193,7 @@ function describeArcSweep(
   const x1 = cx + r * Math.cos(a1);
   const y1 = cy - r * Math.sin(a1);
 
-  const svgSweepFlag = (mathSweep === "ccw") ? 1 : 0;
+  const svgSweepFlag = (mathSweep === "ccw") ? 0 : 1;
 
   return `M ${x0} ${y0} A ${r} ${r} 0 ${largeArcFlag} ${svgSweepFlag} ${x1} ${y1}`;
 }
@@ -591,78 +592,6 @@ function getChildArcs(pd) {
   return arcs;
 }
 
-function getChildArcsFan(pd) {
-  const TAU = Math.PI * 2;
-  const norm = (t) => ((t % TAU) + TAU) % TAU;
-
-  // Circular midpoint that travels CCW from a -> b by half the CCW span
-  function midCCW(a, b) {
-    const d = (b - a + TAU) % TAU; // CCW delta in [0, 2π)
-    return norm(a + d / 2);
-  }
-
-  const key = (x) => (typeof x === "string" ? +x : x);
-
-  const byId = new Map(pd.map(d => [key(d.thisId), d]));
-  const childrenByParent = new Map(
-    pd.map(d => [
-      key(d.thisId),
-      (d.children || [])
-        .map(ch => (typeof ch === "object" ? ch.thisId : ch))
-        .map(key)
-        .filter(id => byId.has(id))
-    ])
-  );
-
-  const child_arcs = [];
-
-  for (const parentRaw of pd) {
-    const pid = key(parentRaw.thisId);
-    const kids = childrenByParent.get(pid) || [];
-    if (kids.length < 2) continue;
-
-    const A = kids
-      .map(id => {
-        const node = byId.get(id);
-        return node ? { id, a: norm(node.angle) } : null;
-      })
-      .filter(Boolean)
-      .sort((u, v) => u.a - v.a);
-
-    const N = A.length;
-    if (N < 2) continue;
-
-    const parent = byId.get(pid);
-    const radius = parent?.r;
-    if (!(radius > 0)) continue;
-
-    for (let i = 0; i < N; i++) {
-      const prev = A[(i - 1 + N) % N];
-      const cur = A[i];
-      const next = A[(i + 1) % N];
-
-      const start = midCCW(prev.a, cur.a);
-      const end = midCCW(cur.a, next.a);
-
-      const deltaCCW = (end - start + TAU) % TAU;
-      const sweep = "ccw";
-      const largeArc = deltaCCW > Math.PI ? 1 : 0;
-
-      child_arcs.push({
-        parentId: pid,
-        childId: cur.id,
-        radius,
-        start,
-        end,
-        sweep,
-        largeArc
-      });
-    }
-  }
-
-  return child_arcs;
-}
-
 /**
  * radialLayout(node, opts?)
  * opts:
@@ -706,13 +635,8 @@ function radialLayout(node, opts = {}) {
     ? getArcsFan(pd)
     : getArcs(pd);
 
-  // per-child arcs for half-arc highlighting if you already use them
-  let child_arcs = [];
-  if (arcsStyle === "fan") {
-    child_arcs = getChildArcsFan(pd);
-  } else {
-    child_arcs = getChildArcs(pd);
-  }
+  // per-child arcs for path highlighting: always parent.angle → child.angle at parent.r
+  const child_arcs = getChildArcs(pd);
 
   return { data: pd, radii, arcs, child_arcs };
 }
@@ -1049,21 +973,29 @@ function readTree(text) {
   text = String(text).replace(/\s+/g, '');
 
   const tokens = text.split(/(;|\(|\)|,)/);
-  const root = { parent: null, children: [] };
-  let curnode = root;
   let nodeId = 0;
+  const makeNode = (parent) => ({
+    parent,
+    children: [],
+    id: nodeId++,
+    label: '',
+    branchLength: null
+  });
+
+  const root = makeNode(null);
+  let curnode = root;
 
   for (const token of tokens) {
     if (!token || token === ';') continue;
 
     if (token === '(') {
-      const child = { parent: curnode, children: [] };
+      const child = makeNode(curnode);
       curnode.children.push(child);
       curnode = child; // descend
     } else if (token === ',') {
       // back to parent, then create sibling
       curnode = curnode.parent;
-      const child = { parent: curnode, children: [] };
+      const child = makeNode(curnode);
       curnode.children.push(child);
       curnode = child;
     } else if (token === ')') {
@@ -1072,14 +1004,15 @@ function readTree(text) {
       if (curnode === null) break;
     } else {
       // label/branch-length chunk (e.g., "A:0.01" or "A")
+      // Note: nodes are assigned an id at creation (above), so internal
+      // (clade) nodes that carry neither a label nor a branch length —
+      // e.g. "((A,B),(C,D));" — still get a valid, linkable id here.
       const nodeinfo = token.split(':');
       if (nodeinfo.length === 1) {
         if (token.startsWith(':')) {
-          curnode.label = '';
           curnode.branchLength = parseFloat(nodeinfo[0]);
         } else {
           curnode.label = nodeinfo[0];
-          curnode.branchLength = null;
         }
       } else if (nodeinfo.length === 2) {
         curnode.label = nodeinfo[0];
@@ -1089,12 +1022,8 @@ function readTree(text) {
         curnode.label = nodeinfo[0] || '';
         curnode.branchLength = parseFloat(nodeinfo[nodeinfo.length - 1]);
       }
-      curnode.id = nodeId++; // assign then increment
     }
   }
-
-  // Ensure root has an id if not assigned during parsing
-  if (root.id == null) root.id = nodeId;
 
   return root;
 }
@@ -1202,7 +1131,7 @@ function drawPhylogeny(
     const tips = horizontal.filter((d) => d.isTip);
 
     // indices & root→tip getter
-    const byId = new Map(horizontal.map((d) => [d.thisId, d]));
+    const byId = new Map(tree_df.data.map((d) => [d.thisId, d])); // includes root
     const tipById = new Map(tips.map((d) => [d.thisId, d]));
     const tipByLabel = new Map(tips.map((d) => [d.thisLabel, d]));
     const rootToTip = makeRootToTipGetter(byId, { prefer: "x1" });
@@ -1276,6 +1205,7 @@ function drawPhylogeny(
     // interactive root→tip highlight (rect) on dot hover
     tipDots
       .on("mouseenter", function(_event, d) {
+        hoverLayer.selectAll("*").remove();
         drawRectPath(d.thisId, hoverLayer, hoverStroke, hoverWidth);
         d3__namespace.select(this).attr("r", 4);
       })
@@ -1306,6 +1236,7 @@ function drawPhylogeny(
 
       labels
         .on("mouseenter", function(_event, d) {
+          hoverLayer.selectAll("*").remove();
           drawRectPath(d.thisId, hoverLayer, hoverStroke, hoverWidth);
           d3__namespace.select(this).attr("font-weight", 600);
         })
@@ -1332,7 +1263,6 @@ function drawPhylogeny(
 
     // helper to draw root→tip for rect (both vertical+horizontal)
     function drawRectPath(tipId, layer, stroke, width) {
-      layer.selectAll("*").remove();
       let cur = byId.get(tipId);
       while (cur && cur.parentId != null) {
         const parent = byId.get(cur.parentId);
@@ -1389,10 +1319,14 @@ function drawPhylogeny(
     const END_CAP = 0;
 
     // ===== SCALES / BOUNDS =====
-    const maxRadius = d3__namespace.max(rad.data, (d) => d.r) ?? 0;
-    const scaleRadial = maxRadius + 2 * radialMargin;
     const w = width,
       h = height;
+    const maxRadius = d3__namespace.max(rad.data, (d) => d.r) ?? 0;
+    // radialMargin is in pixels: tips sit (radialMargin) px from the SVG edge.
+    // Derive the data-space scale so that radiusPx(maxRadius) = w/2 - radialMargin.
+    const scaleRadial = maxRadius > 0
+      ? maxRadius * (w / 2) / (w / 2 - radialMargin)
+      : 1;
     const centerX = w / 2,
       centerY = h / 2;
 
@@ -1602,6 +1536,8 @@ function drawPhylogeny(
       // label hover
       labels
         .on("mouseenter", function(_event, d) {
+          hoverLines.selectAll("*").remove();
+          hoverArcs.selectAll("*").remove();
           drawRadialPath(d, hoverLines, hoverArcs, hoverStroke, hoverWidth);
           d3__namespace.select(this).select("text").attr("font-weight", 600);
         })
@@ -1621,9 +1557,6 @@ function drawPhylogeny(
       width = 3
     ) {
       // target may be a tip node *or* a numeric tip id
-      lineLayer.selectAll("*").remove();
-      arcLayer.selectAll("*").remove();
-
       let cur = (typeof target === "number" || typeof target === "string")
         ? byId.get(target)
         : target;
@@ -1666,14 +1599,6 @@ function drawPhylogeny(
         }
 
         if (a) {
-          console.log("Drawing arc:", {
-            childId: cur.thisId,
-            startDeg: (a.start * 180 / Math.PI).toFixed(2),
-            endDeg: (a.end * 180 / Math.PI).toFixed(2),
-            sweep: a.sweep,
-            radius: a.radius
-          });
-
           arcLayer
             .append("path")
             .attr("d", pathFromArcRecord(a))
@@ -1690,6 +1615,8 @@ function drawPhylogeny(
     // tip dot hover
     tipDots
       .on("mouseenter", function(_event, d) {
+        hoverLines.selectAll("*").remove();
+        hoverArcs.selectAll("*").remove();
         drawRadialPath(d, hoverLines, hoverArcs, hoverStroke, hoverWidth);
         d3__namespace.select(this).attr("r", DOT_R + 2);
       })

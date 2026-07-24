@@ -26,8 +26,8 @@ export default function describeArc(cx, cy, radius, startAngle, endAngle) {
     return `M ${p.x} ${p.y}`;                   // degenerate span → no arc
   }
 
-  const largeArcFlag = delta > Math.PI ? 1 : 0; // should be 0 for “shortest”, but keep for safety
-  const sweepFlag = 1;                          // CCW
+  const largeArcFlag = delta > Math.PI ? 1 : 0;
+  const sweepFlag = 0;                          // CCW in our y-flipped coords: math-CCW = decreasing SVG angle = sweepFlag 0
 
   const p0 = polarToCartesian(cx, cy, radius, a0);
   const p1 = polarToCartesian(cx, cy, radius, a1);

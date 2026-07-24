@@ -4,8 +4,7 @@ import getRadiiFromPd from "./getRadiiFromPd.js";
 import getArcs from "./getArcs.js";            // your existing "shortest-arc"
 import getArcsFan from "./getArcsFan.js";      // new
 import fanAngles from "./fanAngles.js";
-import getChildArcs from "./getChildArcs.js";  // optional existing helper
-import getChildArcsFan from "./getChildArcsFan.js";  // optional existing helper
+import getChildArcs from "./getChildArcs.js";  // parent.angle → child.angle arcs for path highlighting
 
 /**
  * radialLayout(node, opts?)
@@ -50,13 +49,8 @@ export default function radialLayout(node, opts = {}) {
     ? getArcsFan(pd)
     : getArcs(pd);
 
-  // per-child arcs for half-arc highlighting if you already use them
-  let child_arcs = [];
-  if (arcsStyle === "fan") {
-    child_arcs = getChildArcsFan(pd);
-  } else {
-    child_arcs = getChildArcs(pd);
-  }
+  // per-child arcs for path highlighting: always parent.angle → child.angle at parent.r
+  const child_arcs = getChildArcs(pd);
 
   return { data: pd, radii, arcs, child_arcs };
 }

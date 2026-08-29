@@ -10,16 +10,17 @@ Visit https://euphrasiologist.github.io/lwPhylo/ to see examples and live render
 
 Newick trees can be parsed using the `readTree()` function. This object can then be wrapped in three main functions; `rectangleLayout()` to produce a "regular" phylogenetic tree, `radialLayout()` to produce a circular phylogeny, and `unrooted()` to produce an unrooted tree via the equal angle layout algorithm.
 
-Need a tree to experiment with? `randomTree(nTips, { maxBranchLength, labelPrefix, seed })` generates a random bifurcating tree in the same node shape as `readTree()`, ready to pass straight into any of the layout functions. `toNewick(tree)` serializes one of these parsed tree objects back to a Newick string, so it can be handed to `drawPhylogeny()` (which expects Newick text): `drawPhylogeny(toNewick(randomTree(20)))`.
+Need a tree to experiment with? `randomTree(nTips, { maxBranchLength, labelPrefix, seed })` generates a random bifurcating tree in the same node shape as `readTree()`, ready to pass straight into any of the layout functions. `toNewick(tree)` serializes one of these parsed tree objects back to a Newick string.
 
 `ladderize(tree, { ascending })` and `rotate(tree, nodeId)` change tip order by reordering a node's children in place — ladderize sorts every clade by descendant tip count (smallest first by default), rotate flips the child order at one node (the root, if no id is given).
 
-`drawPhylogeny(newick, options)` accepts, in addition to `layout`/`width`/`height`/`tipLabels`/`labelFontSize`/`highlightTips`:
+`drawPhylogeny(input, options)` accepts either a Newick string or an already-parsed tree object (from `readTree()`/`randomTree()`) as `input`. Passing the same parsed tree object back in across re-renders — e.g. after mutating it with `rotate()` — keeps node ids stable, which `onNodeClick` (below) relies on. Options, in addition to `layout`/`width`/`height`/`tipLabels`/`labelFontSize`/`highlightTips`:
 - `tipRadius` — px radius of tip circles.
 - `internalNodeCircles` (bool) + `internalNodeRadius` — draw a circle at every internal node.
 - `nodeLabels` (bool) + `nodeLabelFontSize` — draw text labels (e.g. clade/support values) at internal nodes that have one.
 - `scaleBar` — `true` for an auto-sized branch-length scale bar, a number for an explicit length in branch-length units, or `{ length, x, y, label }` for full control.
 - `alignTipLabels` (bool, rect & radial layouts) — align tip labels to a common column/ring, with dashed guide lines back to each tip's true position.
+- `onNodeClick(node, event)` — fires when an internal node circle is clicked (requires `internalNodeCircles: true`). Combine with `rotate()` for click-to-rotate: `onNodeClick: (node) => { rotate(tree, node.thisId); redraw(); }`.
 
 ### Acknowledgements
 

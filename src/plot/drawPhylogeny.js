@@ -41,8 +41,12 @@ function addScaleBar(svg, { scale, basis, defaultX, defaultY, scaleBar, fontSize
     .text(opts.label ?? String(length));
 }
 
+// input: a Newick string, or an already-parsed tree (the node shape returned
+// by readTree()/randomTree()). Passing the same parsed tree object back in
+// across re-renders (e.g. after mutating it with rotate()) keeps node ids
+// stable, which onNodeClick below relies on.
 export default function drawPhylogeny(
-  treeText,
+  input,
   {
     layout = "rect", // rect/radial/unrooted
     width = 800,
@@ -60,6 +64,7 @@ export default function drawPhylogeny(
     nodeLabelFontSize, // defaults to labelFontSize
     scaleBar = false, // false | true | number (branch-length units) | { length, x, y, label }
     alignTipLabels = false, // rect & radial only: align tip labels to a common column/ring, with dashed guide lines back to the true tip position
+    onNodeClick, // (node, event) => void — fires when an internal node circle is clicked (requires internalNodeCircles: true)
     showTooltips = true,
     tooltipFormatter = (d, rtt) =>
       `${d.thisLabel ?? "(unnamed)"}\nroot→tip: ${(+rtt).toFixed(4)}`,
@@ -74,6 +79,9 @@ export default function drawPhylogeny(
   // shared helpers
   const isNumber = (x) => typeof x === "number" && Number.isFinite(x);
   const nodeLabelSize = nodeLabelFontSize ?? labelFontSize;
+  const parsedTree = (input && typeof input === "object" && Array.isArray(input.children))
+    ? input
+    : lw.readTree(input);
   // Works for both radial (uses `r`) and rect (uses `x1`).
   // Falls back to summing branchLength up to the root if neither is present.
   function makeRootToTipGetter(byId, { prefer = "auto" } = {}) {
@@ -102,7 +110,7 @@ export default function drawPhylogeny(
 
   if (layout === "rect") {
     // RECTANGULAR LAYOUT
-    const tree_df = lw.rectangleLayout(lw.readTree(treeText));
+    const tree_df = lw.rectangleLayout(parsedTree);
     const horizontal = tree_df.horizontal_lines;
     const vertical = tree_df.vertical_lines;
     const tips = horizontal.filter((d) => d.isTip);
@@ -212,6 +220,12 @@ export default function drawPhylogeny(
         internalDots
           .append("title")
           .text((d) => tooltipFormatter(d, rootToTip(d.thisId)));
+      }
+
+      if (onNodeClick) {
+        internalDots
+          .style("cursor", "pointer")
+          .on("click", (event, d) => onNodeClick(d, event));
       }
     }
 
@@ -348,7 +362,6 @@ export default function drawPhylogeny(
     if (width !== height) {
       throw new Error("width and height must be the same for radial layout");
     }
-    const parsedTree = lw.readTree(treeText);
     const rad = lw.radialLayout(parsedTree, {
       angleStrategy: "fan",
       arcsStyle: "fan"
@@ -568,6 +581,12 @@ export default function drawPhylogeny(
           .append("title")
           .text((d) => tooltipFormatter(d, rootToTip(d.thisId)));
       }
+
+      if (onNodeClick) {
+        internalDots
+          .style("cursor", "pointer")
+          .on("click", (event, d) => onNodeClick(d, event));
+      }
     }
 
     // ===== INTERNAL NODE LABELS (optional) =====
@@ -768,7 +787,6 @@ export default function drawPhylogeny(
     return svg.node();
   } else if (layout === "unrooted") {
     // UNROOTED LAYOUT
-    const parsedTree = lw.readTree(treeText);
     const unrootedPhylo = lw.unrooted(parsedTree);
 
     const w = width;
@@ -829,6 +847,13 @@ export default function drawPhylogeny(
       .attr("stroke", "black")
       .attr("stroke-width", 2)
       .attr("fill", (d) => (d.isTip ? "black" : "white"));
+
+    if (internalNodeCircles && onNodeClick) {
+      nodes
+        .filter((d) => !d.isTip)
+        .style("cursor", "pointer")
+        .on("click", (event, d) => onNodeClick(d, event));
+    }
 
     if (nodeLabels) {
       const labeledInternalNodes = unrootedPhylo.data.filter((d) => !d.isTip && d.thisLabel);

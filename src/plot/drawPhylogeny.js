@@ -45,9 +45,8 @@ function addScaleBar(svg, { scale, basis, defaultX, defaultY, scaleBar, fontSize
 // by readTree()/randomTree()). Passing the same parsed tree object back in
 // across re-renders (e.g. after mutating it with rotate()) keeps node ids
 // stable, which onNodeClick below relies on.
-export default function drawPhylogeny(
-  input,
-  {
+export default function drawPhylogeny(input, options = {}) {
+  const {
     layout = "rect", // rect/radial/unrooted
     width = 800,
     height = 800,
@@ -58,12 +57,13 @@ export default function drawPhylogeny(
     tipLabels = true,
     labelFontSize = 10, // font size (px) for tip labels
     tipRadius, // px radius of tip dots; defaults to each layout's original size
-    internalNodeCircles = false, // draw a circle at every internal (non-tip) node
     internalNodeRadius = 3, // px radius for internal node circles
     nodeLabels = false, // draw text labels at internal nodes (e.g. clade/support labels)
     nodeLabelFontSize, // defaults to labelFontSize
     scaleBar = false, // false | true | number (branch-length units) | { length, x, y, label }
     alignTipLabels = false, // rect & radial only: align tip labels to a common column/ring, with dashed guide lines back to the true tip position
+    container, // DOM element or CSS selector — if given, drawPhylogeny mounts the SVG itself instead of just returning it
+    rotateOnClick = false, // click an internal node circle to rotate its children in place and auto-redraw (requires container)
     onNodeClick, // (node, event) => void — fires when an internal node circle is clicked (requires internalNodeCircles: true)
     showTooltips = true,
     tooltipFormatter = (d, rtt) =>
@@ -73,8 +73,10 @@ export default function drawPhylogeny(
     highlightTips = [], // array of tip labels or ids for static highlight (optional)
     highlightStroke = "#e63946",
     highlightWidth = 2.5
-  } = {}
-) {
+  } = options;
+  // rotateOnClick needs internal node circles to click on; auto-enable them
+  // unless the caller explicitly said otherwise.
+  const internalNodeCircles = options.internalNodeCircles ?? rotateOnClick;
 
   // shared helpers
   const isNumber = (x) => typeof x === "number" && Number.isFinite(x);
@@ -82,6 +84,35 @@ export default function drawPhylogeny(
   const parsedTree = (input && typeof input === "object" && Array.isArray(input.children))
     ? input
     : lw.readTree(input);
+
+  const mountEl = typeof container === "string"
+    ? (typeof document !== "undefined" ? document.querySelector(container) : null)
+    : (container ?? null);
+
+  if (rotateOnClick && !mountEl) {
+    throw new Error(
+      "rotateOnClick requires a `container` (a DOM element or CSS selector) so drawPhylogeny can mount the redrawn SVG after each rotation."
+    );
+  }
+
+  // fires the caller's onNodeClick (if any), then handles the rotate+redraw itself
+  const effectiveOnNodeClick = (onNodeClick || rotateOnClick)
+    ? (node, event) => {
+      if (typeof onNodeClick === "function") onNodeClick(node, event);
+      if (rotateOnClick) {
+        lw.rotate(parsedTree, node.thisId);
+        drawPhylogeny(parsedTree, options);
+      }
+    }
+    : undefined;
+
+  function mount(svgNode) {
+    if (mountEl) {
+      mountEl.innerHTML = "";
+      mountEl.appendChild(svgNode);
+    }
+    return svgNode;
+  }
   // Works for both radial (uses `r`) and rect (uses `x1`).
   // Falls back to summing branchLength up to the root if neither is present.
   function makeRootToTipGetter(byId, { prefer = "auto" } = {}) {
@@ -222,10 +253,10 @@ export default function drawPhylogeny(
           .text((d) => tooltipFormatter(d, rootToTip(d.thisId)));
       }
 
-      if (onNodeClick) {
+      if (effectiveOnNodeClick) {
         internalDots
           .style("cursor", "pointer")
-          .on("click", (event, d) => onNodeClick(d, event));
+          .on("click", (event, d) => effectiveOnNodeClick(d, event));
       }
     }
 
@@ -356,7 +387,7 @@ export default function drawPhylogeny(
       });
     }
 
-    return svg.node();
+    return mount(svg.node());
   } else if (layout === "radial") {
     // RADIAL LAYOUT
     if (width !== height) {
@@ -582,10 +613,10 @@ export default function drawPhylogeny(
           .text((d) => tooltipFormatter(d, rootToTip(d.thisId)));
       }
 
-      if (onNodeClick) {
+      if (effectiveOnNodeClick) {
         internalDots
           .style("cursor", "pointer")
-          .on("click", (event, d) => onNodeClick(d, event));
+          .on("click", (event, d) => effectiveOnNodeClick(d, event));
       }
     }
 
@@ -784,7 +815,7 @@ export default function drawPhylogeny(
       });
     }
 
-    return svg.node();
+    return mount(svg.node());
   } else if (layout === "unrooted") {
     // UNROOTED LAYOUT
     const unrootedPhylo = lw.unrooted(parsedTree);
@@ -848,11 +879,11 @@ export default function drawPhylogeny(
       .attr("stroke-width", 2)
       .attr("fill", (d) => (d.isTip ? "black" : "white"));
 
-    if (internalNodeCircles && onNodeClick) {
+    if (internalNodeCircles && effectiveOnNodeClick) {
       nodes
         .filter((d) => !d.isTip)
         .style("cursor", "pointer")
-        .on("click", (event, d) => onNodeClick(d, event));
+        .on("click", (event, d) => effectiveOnNodeClick(d, event));
     }
 
     if (nodeLabels) {
@@ -1017,7 +1048,7 @@ export default function drawPhylogeny(
       });
     }
 
-    return svg.node();
+    return mount(svg.node());
   } else {
     throw new Error(
       "Unsupported layout type. Use 'rect', 'radial', or 'unrooted'."

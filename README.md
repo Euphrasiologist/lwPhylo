@@ -20,7 +20,12 @@ Need a tree to experiment with? `randomTree(nTips, { maxBranchLength, labelPrefi
 - `nodeLabels` (bool) + `nodeLabelFontSize` — draw text labels (e.g. clade/support values) at internal nodes that have one.
 - `scaleBar` — `true` for an auto-sized branch-length scale bar, a number for an explicit length in branch-length units, or `{ length, x, y, label }` for full control.
 - `alignTipLabels` (bool, rect & radial layouts) — align tip labels to a common column/ring, with dashed guide lines back to each tip's true position.
-- `onNodeClick(node, event)` — fires when an internal node circle is clicked (requires `internalNodeCircles: true`). Combine with `rotate()` for click-to-rotate: `onNodeClick: (node) => { rotate(tree, node.thisId); redraw(); }`.
+- `onNodeClick(node, event)` — fires when an internal node circle is clicked (requires `internalNodeCircles: true`).
+- `container` (DOM element or CSS selector) + `rotateOnClick` (bool) — the batteries-included version of click-to-rotate: with both set, `drawPhylogeny` mounts the SVG into `container` itself and, on every internal-node click, rotates that clade and redraws back into the same container — no manual render loop needed:
+  ```js
+  drawPhylogeny(newickString, { layout: "rect", container: "#tree", rotateOnClick: true });
+  ```
+  `rotateOnClick` auto-enables `internalNodeCircles` unless you set it explicitly. A supplied `onNodeClick` still fires too, before the rotate. Without a `container`, `rotateOnClick` throws — there'd be nowhere to put the redrawn SVG. For finer control (e.g. wrapping the SVG in your own zoom/pan `<g>`, as the demo site does), skip `container`/`rotateOnClick` and drive it yourself with `onNodeClick` + `rotate()` as shown in the demo's own source.
 
 ### Acknowledgements
 

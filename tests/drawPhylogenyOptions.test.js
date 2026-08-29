@@ -151,3 +151,80 @@ test("onNodeClick exposes the same node ids as the tree object passed in (stable
 
   assert.deepEqual(seen, internalIds);
 });
+
+test("rotateOnClick without a container throws", () => {
+  assert.throws(
+    () => drawPhylogeny(newick, { layout: "rect", rotateOnClick: true }),
+    /requires a `container`/
+  );
+});
+
+test("rotateOnClick auto-enables internalNodeCircles unless overridden", () => {
+  const enabled = drawPhylogeny(newick, {
+    layout: "rect",
+    width: 400,
+    height: 400,
+    container: document.createElement("div"),
+    rotateOnClick: true
+  });
+  assert.ok(enabled.querySelectorAll(".phylo_internal_dots circle").length > 0);
+
+  const overridden = drawPhylogeny(newick, {
+    layout: "rect",
+    width: 400,
+    height: 400,
+    container: document.createElement("div"),
+    rotateOnClick: true,
+    internalNodeCircles: false
+  });
+  assert.equal(overridden.querySelectorAll(".phylo_internal_dots circle").length, 0);
+});
+
+test("container mounts the svg and rotateOnClick self-redraws into it, in place", () => {
+  const el = document.createElement("div");
+  const svg1 = drawPhylogeny(newick, { layout: "rect", width: 400, height: 400, container: el, rotateOnClick: true });
+
+  assert.equal(el.children.length, 1);
+  assert.equal(el.firstChild, svg1);
+
+  const tipOrder = () =>
+    [...el.querySelectorAll(".phylo_labels text")]
+      .map((e) => [+e.getAttribute("y"), e.childNodes[0].nodeValue])
+      .sort((a, b) => a[0] - b[0])
+      .map((p) => p[1]);
+
+  const before = tipOrder();
+  click(el.querySelector(".phylo_internal_dots circle"));
+
+  // the redraw happened inside the click handler and remounted into the
+  // same container — still exactly one <svg>, with a different tip order
+  assert.equal(el.children.length, 1);
+  assert.notDeepEqual(tipOrder(), before);
+});
+
+test("container accepts a CSS selector string", () => {
+  const el = document.createElement("div");
+  el.id = "container-selector-test";
+  document.body.appendChild(el);
+  try {
+    const svg = drawPhylogeny(newick, { layout: "rect", width: 400, height: 400, container: "#container-selector-test" });
+    assert.equal(el.firstChild, svg);
+  } finally {
+    document.body.removeChild(el);
+  }
+});
+
+test("a user-supplied onNodeClick still fires alongside rotateOnClick", () => {
+  const calls = [];
+  const el = document.createElement("div");
+  drawPhylogeny(newick, {
+    layout: "rect",
+    width: 400,
+    height: 400,
+    container: el,
+    rotateOnClick: true,
+    onNodeClick: (node) => calls.push(node.thisId)
+  });
+  click(el.querySelector(".phylo_internal_dots circle"));
+  assert.equal(calls.length, 1);
+});

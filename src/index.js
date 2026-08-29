@@ -9,4 +9,5 @@ export { default as parentFisheye } from "./utils/parentFisheye.js"
 export { default as randomTree } from "./utils/randomTree.js"
 export { default as readTree } from "./utils/readTree.js"
 export { default as subTree } from "./utils/subTree.js"
+export { default as toNewick } from "./utils/toNewick.js"
 export { default as drawPhylogeny } from "./plot/drawPhylogeny.js"; 

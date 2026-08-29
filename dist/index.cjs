@@ -1152,6 +1152,27 @@ function subTree (tree, node) {
     return Object.fromEntries(data.concat(filtered));
 }
 
+/**
+ * Serialize a parsed tree (the parent/children node shape produced by
+ * readTree() and randomTree()) back into a Newick string.
+ */
+
+function toNewick(node) {
+  return `${serialize(node)};`;
+}
+
+function serialize(node) {
+  const label = node.label || '';
+  const branch = node.branchLength == null ? '' : `:${node.branchLength}`;
+
+  if (node.children.length === 0) {
+    return `${label}${branch}`;
+  }
+
+  const children = node.children.map(serialize).join(',');
+  return `(${children})${label}${branch}`;
+}
+
 function drawPhylogeny(
   treeText,
   {
@@ -1945,5 +1966,6 @@ exports.randomTree = randomTree;
 exports.readTree = readTree;
 exports.rectangleLayout = rectangleLayout;
 exports.subTree = subTree;
+exports.toNewick = toNewick;
 exports.unrooted = unrooted;
 //# sourceMappingURL=index.cjs.map

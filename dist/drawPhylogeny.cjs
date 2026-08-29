@@ -906,6 +906,46 @@ function readTree(text) {
   return root;
 }
 
+// Round a raw data-space length to a "nice" 1/2/5-of-a-power-of-ten value,
+// so an auto-sized scale bar doesn't show an ugly number like "0.347".
+function niceScaleLength(target) {
+  if (!(target > 0)) return 1;
+  const exp = Math.floor(Math.log10(target));
+  const base = Math.pow(10, exp);
+  const residual = target / base;
+  const niceResidual = residual < 1.5 ? 1 : residual < 3.5 ? 2 : residual < 7.5 ? 5 : 10;
+  return niceResidual * base;
+}
+
+// scaleBar: true | number (explicit data-units length) | { length, x, y, label }
+function addScaleBar(svg, { scale, basis, defaultX, defaultY, scaleBar, fontSize }) {
+  const opts = (scaleBar === true || typeof scaleBar === "number") ? {} : scaleBar;
+  const length = typeof scaleBar === "number" ? scaleBar : (opts.length ?? niceScaleLength(basis / 5));
+  const x = opts.x ?? defaultX;
+  const y = opts.y ?? defaultY;
+  const barPx = scale(length) - scale(0);
+
+  const g = svg.append("g").attr("class", "phylo_scale_bar");
+  g.append("line")
+    .attr("x1", x).attr("x2", x + barPx)
+    .attr("y1", y).attr("y2", y)
+    .attr("stroke", "#000")
+    .attr("stroke-width", 1);
+  [x, x + barPx].forEach((tx) => {
+    g.append("line")
+      .attr("x1", tx).attr("x2", tx)
+      .attr("y1", y - 4).attr("y2", y + 4)
+      .attr("stroke", "#000")
+      .attr("stroke-width", 1);
+  });
+  g.append("text")
+    .attr("x", x + barPx / 2)
+    .attr("y", y - 6)
+    .attr("text-anchor", "middle")
+    .attr("font-size", fontSize)
+    .text(opts.label ?? String(length));
+}
+
 function drawPhylogeny(
   treeText,
   {
@@ -918,6 +958,13 @@ function drawPhylogeny(
     radialMode = "outer", // "outer" (co-circular tips) or "phylo" (true terminals)
     tipLabels = true,
     labelFontSize = 10, // font size (px) for tip labels
+    tipRadius, // px radius of tip dots; defaults to each layout's original size
+    internalNodeCircles = false, // draw a circle at every internal (non-tip) node
+    internalNodeRadius = 3, // px radius for internal node circles
+    nodeLabels = false, // draw text labels at internal nodes (e.g. clade/support labels)
+    nodeLabelFontSize, // defaults to labelFontSize
+    scaleBar = false, // false | true | number (branch-length units) | { length, x, y, label }
+    alignTipLabels = false, // rect & radial only: align tip labels to a common column/ring, with dashed guide lines back to the true tip position
     showTooltips = true,
     tooltipFormatter = (d, rtt) =>
       `${d.thisLabel ?? "(unnamed)"}\nroot→tip: ${(+rtt).toFixed(4)}`,
@@ -931,6 +978,7 @@ function drawPhylogeny(
 
   // shared helpers
   const isNumber = (x) => typeof x === "number" && Number.isFinite(x);
+  const nodeLabelSize = nodeLabelFontSize ?? labelFontSize;
   // Works for both radial (uses `r`) and rect (uses `x1`).
   // Falls back to summing branchLength up to the root if neither is present.
   function makeRootToTipGetter(byId, { prefer = "auto" } = {}) {
@@ -969,6 +1017,7 @@ function drawPhylogeny(
     const tipById = new Map(tips.map((d) => [d.thisId, d]));
     const tipByLabel = new Map(tips.map((d) => [d.thisLabel, d]));
     const rootToTip = makeRootToTipGetter(byId, { prefer: "x1" });
+    const R_TIP = tipRadius ?? 2;
 
     const maxY = d3__namespace.max(horizontal, (d) => d.y1);
     const minY = d3__namespace.min(horizontal, (d) => d.y1);
@@ -1026,7 +1075,7 @@ function drawPhylogeny(
       .join("circle")
       .attr("cx", (d) => xScale(d.x1))
       .attr("cy", (d) => yScale(d.y1))
-      .attr("r", 2)
+      .attr("r", R_TIP)
       .attr("fill", "black");
 
     // tooltips for rect dots
@@ -1041,12 +1090,71 @@ function drawPhylogeny(
       .on("mouseenter", function(_event, d) {
         hoverLayer.selectAll("*").remove();
         drawRectPath(d.thisId, hoverLayer, hoverStroke, hoverWidth);
-        d3__namespace.select(this).attr("r", 4);
+        d3__namespace.select(this).attr("r", R_TIP + 2);
       })
       .on("mouseleave", function() {
         hoverLayer.selectAll("*").remove();
-        d3__namespace.select(this).attr("r", 2);
+        d3__namespace.select(this).attr("r", R_TIP);
       });
+
+    // internal node circles (optional)
+    if (internalNodeCircles) {
+      const internalNodes = tree_df.data.filter((d) => !d.isTip);
+      const internalDots = group
+        .append("g")
+        .attr("class", "phylo_internal_dots")
+        .selectAll("circle")
+        .data(internalNodes)
+        .join("circle")
+        .attr("cx", (d) => xScale(d.x1))
+        .attr("cy", (d) => yScale(d.y1))
+        .attr("r", internalNodeRadius)
+        .attr("fill", "white")
+        .attr("stroke", "#555")
+        .attr("stroke-width", 1);
+
+      if (showTooltips) {
+        internalDots
+          .append("title")
+          .text((d) => tooltipFormatter(d, rootToTip(d.thisId)));
+      }
+    }
+
+    // internal node labels (optional)
+    if (nodeLabels) {
+      const labeledInternalNodes = tree_df.data.filter((d) => !d.isTip && d.thisLabel);
+      svg
+        .append("g")
+        .attr("class", "phylo_node_labels")
+        .selectAll("text")
+        .data(labeledInternalNodes)
+        .join("text")
+        .attr("x", (d) => xScale(d.x1) - 4)
+        .attr("y", (d) => yScale(d.y1) - 4)
+        .attr("text-anchor", "end")
+        .attr("font-size", nodeLabelSize)
+        .text((d) => d.thisLabel);
+    }
+
+    // column that tip labels align to when alignTipLabels is set
+    const alignX = xScale(maxX);
+
+    // dashed guide lines from each tip's true branch end to the aligned label column
+    if (tipLabels && alignTipLabels) {
+      group
+        .append("g")
+        .attr("class", "phylo_align_guides")
+        .selectAll("line")
+        .data(tips)
+        .join("line")
+        .attr("x1", (d) => xScale(d.x1))
+        .attr("x2", alignX)
+        .attr("y1", (d) => yScale(d.y1))
+        .attr("y2", (d) => yScale(d.y1))
+        .attr("stroke", "#999")
+        .attr("stroke-width", 1)
+        .attr("stroke-dasharray", "2,2");
+    }
 
     // labels
     if (tipLabels) {
@@ -1056,7 +1164,7 @@ function drawPhylogeny(
         .selectAll("text")
         .data(tips)
         .join("text")
-        .attr("x", (d) => xScale(d.x1) + 4)
+        .attr("x", (d) => (alignTipLabels ? alignX : xScale(d.x1)) + 4)
         .attr("y", (d) => yScale(d.y1))
         .attr("dy", "0.32em")
         .attr("font-size", labelFontSize)
@@ -1128,6 +1236,17 @@ function drawPhylogeny(
       }
     }
 
+    if (scaleBar) {
+      addScaleBar(svg, {
+        scale: xScale,
+        basis: maxX,
+        defaultX: margin.left,
+        defaultY: height - margin.bottom / 2,
+        scaleBar,
+        fontSize: labelFontSize
+      });
+    }
+
     return svg.node();
   } else if (layout === "radial") {
     // RADIAL LAYOUT
@@ -1149,7 +1268,7 @@ function drawPhylogeny(
 
 
     // visuals (0 = let spokes reach the dots)
-    const DOT_R = 3;
+    const DOT_R = tipRadius ?? 3;
     const END_CAP = 0;
 
     // ===== SCALES / BOUNDS =====
@@ -1287,6 +1406,25 @@ function drawPhylogeny(
           .attr("stroke-width", strokeWidth);
       });
 
+    // ===== ALIGN GUIDES (optional) =====
+    // dashed lines from each tip's true position to the common label ring,
+    // for radialMode "phylo" (true terminals) where tips aren't already co-circular
+    if (tipLabels && alignTipLabels && !isOuter) {
+      group
+        .append("g")
+        .attr("class", "phylo_align_guides")
+        .selectAll("line")
+        .data(tips)
+        .join("line")
+        .attr("x1", (d) => xScaleRadial(d.x))
+        .attr("y1", (d) => yScaleRadial(d.y))
+        .attr("x2", (d) => xScaleRadial(tipMaxR * Math.cos(d.angle)))
+        .attr("y2", (d) => yScaleRadial(tipMaxR * Math.sin(d.angle)))
+        .attr("stroke", "#999")
+        .attr("stroke-width", 1)
+        .attr("stroke-dasharray", "2,2");
+    }
+
     // ===== TIP DOTS =====
     const tipDots = group
       .append("g")
@@ -1314,6 +1452,45 @@ function drawPhylogeny(
         .text((d) => tooltipFormatter(d, rootToTip(d.thisId)));
     }
 
+    // ===== INTERNAL NODE CIRCLES (optional) =====
+    if (internalNodeCircles) {
+      const internalNodes = rad.data.filter((d) => !d.isTip);
+      const internalDots = group
+        .append("g")
+        .attr("class", "phylo_internal_dots")
+        .selectAll("circle")
+        .data(internalNodes)
+        .join("circle")
+        .attr("cx", (d) => xScaleRadial(d.x))
+        .attr("cy", (d) => yScaleRadial(d.y))
+        .attr("r", internalNodeRadius)
+        .attr("fill", "white")
+        .attr("stroke", "#555")
+        .attr("stroke-width", 1);
+
+      if (showTooltips) {
+        internalDots
+          .append("title")
+          .text((d) => tooltipFormatter(d, rootToTip(d.thisId)));
+      }
+    }
+
+    // ===== INTERNAL NODE LABELS (optional) =====
+    if (nodeLabels) {
+      const labeledInternalNodes = rad.data.filter((d) => !d.isTip && d.thisLabel);
+      group
+        .append("g")
+        .attr("class", "phylo_node_labels")
+        .selectAll("text")
+        .data(labeledInternalNodes)
+        .join("text")
+        .attr("x", (d) => xScaleRadial(d.x) + 4)
+        .attr("y", (d) => yScaleRadial(d.y) - 4)
+        .attr("font-size", nodeLabelSize)
+        .attr("fill", "black")
+        .text((d) => d.thisLabel);
+    }
+
     // maps for fast lookup on hover (childId → spoke / arc)
     const key = (x) => (typeof x === "string" ? +x : x);
     const spokeByChild = new Map(rad.radii.map(s => [key(s.childId ?? s.thisId ?? s.id1), s]));
@@ -1334,7 +1511,8 @@ function drawPhylogeny(
           // same tip position rule as dots/spokes:
           //  - "outer": snap to common ring (tipMaxR)
           //  - otherwise (e.g. "align"/"phylo"): true tip radius
-          const r = isOuter ? tipMaxR : d.r;
+          //  - alignTipLabels forces the common ring regardless of mode
+          const r = (isOuter || alignTipLabels) ? tipMaxR : d.r;
           const x = r * Math.cos(d.angle);
           const y = r * Math.sin(d.angle);
           return `translate(${xScaleRadial(x)},${yScaleRadial(y)})`;
@@ -1481,6 +1659,17 @@ function drawPhylogeny(
       });
     }
 
+    if (scaleBar) {
+      addScaleBar(svg, {
+        scale: xScaleRadial,
+        basis: maxRadius,
+        defaultX: 20,
+        defaultY: h - 20,
+        scaleBar,
+        fontSize: labelFontSize
+      });
+    }
+
     return svg.node();
   } else if (layout === "unrooted") {
     // UNROOTED LAYOUT
@@ -1530,6 +1719,8 @@ function drawPhylogeny(
       .attr("stroke-width", strokeWidth)
       .attr("stroke", "#777");
 
+    const R_TIP = tipRadius ?? 4;
+
     const nodes = group
       .append("g")
       .attr("class", "phylo_points")
@@ -1537,12 +1728,27 @@ function drawPhylogeny(
       .data(unrootedPhylo.data)
       .join("circle")
       .attr("class", "dot")
-      .attr("r", (d) => (d.isTip ? 4 : 0))
+      .attr("r", (d) => (d.isTip ? R_TIP : (internalNodeCircles ? internalNodeRadius : 0)))
       .attr("cx", (d) => xScaleUnroot(d.x))
       .attr("cy", (d) => yScaleUnroot(d.y))
       .attr("stroke", "black")
       .attr("stroke-width", 2)
       .attr("fill", (d) => (d.isTip ? "black" : "white"));
+
+    if (nodeLabels) {
+      const labeledInternalNodes = unrootedPhylo.data.filter((d) => !d.isTip && d.thisLabel);
+      group
+        .append("g")
+        .attr("class", "phylo_node_labels")
+        .selectAll("text")
+        .data(labeledInternalNodes)
+        .join("text")
+        .attr("x", (d) => xScaleUnroot(d.x) + 4)
+        .attr("y", (d) => yScaleUnroot(d.y) - 4)
+        .attr("font-size", nodeLabelSize)
+        .attr("fill", "black")
+        .text((d) => d.thisLabel);
+    }
 
     const byId = new Map(unrootedPhylo.data.map((d) => [d.thisId, d]));
     const tipById = new Map(
@@ -1633,11 +1839,11 @@ function drawPhylogeny(
       .filter((d) => d.isTip)
       .on("mouseenter", function(_event, d) {
         drawUnrootedPath(d.thisId, hoverLayer, hoverStroke, hoverWidth);
-        d3__namespace.select(this).attr("r", 6);
+        d3__namespace.select(this).attr("r", R_TIP + 2);
       })
       .on("mouseleave", function() {
         hoverLayer.selectAll("*").remove();
-        d3__namespace.select(this).attr("r", 4);
+        d3__namespace.select(this).attr("r", R_TIP);
       });
 
     if (highlightTips && highlightTips.length) {
@@ -1678,6 +1884,17 @@ function drawPhylogeny(
         }
         cur = byId.get(cur.parentId);
       }
+    }
+
+    if (scaleBar) {
+      addScaleBar(svg, {
+        scale: xScaleUnroot,
+        basis: maxRadius,
+        defaultX: 20,
+        defaultY: h - 20,
+        scaleBar,
+        fontSize: labelFontSize
+      });
     }
 
     return svg.node();

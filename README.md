@@ -33,4 +33,6 @@ Original implementation of tree layout schemes are found here: https://github.co
 
 ### Citation
 
-Brown, M (2020). lwPhylo: A lightweight, low level javascript library to plot phylogenies from a Newick file, version 1.1.2
+Brown, M. (2020–). lwPhylo: A lightweight, low level javascript library to plot phylogenies from a Newick file. Anglia Ruskin University. ORCID: [0000-0003-2561-516X](https://orcid.org/0000-0003-2561-516X). https://github.com/Euphrasiologist/lwPhylo
+
+Each GitHub release is archived on Zenodo and receives its own DOI; see `CITATION.cff` (or GitHub's "Cite this repository" button) for machine-readable metadata.

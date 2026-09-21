@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "lwPhylo: A lightweight, low level javascript library to plot phylogenies from a Newick file"
+type: software
+authors:
+  - family-names: Brown
+    given-names: Max
+    orcid: "https://orcid.org/0000-0003-2561-516X"
+    affiliation: "Anglia Ruskin University"
+repository-code: "https://github.com/Euphrasiologist/lwPhylo"
+url: "https://euphrasiologist.github.io/lwPhylo/"
+license: ISC
+keywords:
+  - phylogeny
+  - visualisation
+  - newick
+  - d3
+  - phylogenetics

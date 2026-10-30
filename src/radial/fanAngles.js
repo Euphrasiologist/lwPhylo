@@ -1,14 +1,9 @@
 // APE-like "fan" angles: tips evenly spaced with open-angle gap & rotation,
-// internal nodes = arithmetic mean of unwrapped child angles.
+// internal nodes = arithmetic mean of child angles. Angles stay unwrapped (they
+// increase along the tip order) until the end, so a parent always sits inside
+// the first-to-last child arc, even when that arc spans more than 180°.
 const TAU = Math.PI * 2;
 const norm = (t) => ((t % TAU) + TAU) % TAU;
-
-function unwrapAround(ref, a) {
-  let x = a;
-  while (x < ref - Math.PI) x += TAU;
-  while (x > ref + Math.PI) x -= TAU;
-  return x;
-}
 
 export default function fanAngles(pd, opts = {}) {
   const { openAngleDeg = 0, rotateDeg = 0 } = opts;
@@ -33,19 +28,18 @@ export default function fanAngles(pd, opts = {}) {
   const step = N > 1 ? maxA / (N - 1) : 0;
 
   const angle = new Map();
-  tipIds.forEach((id, i) => angle.set(id, norm(i * step + rot)));
+  tipIds.forEach((id, i) => angle.set(id, i * step + rot));
 
   // internal nodes: arithmetic mean of child angles (unwrapped)
   (function setInternal(id) {
     const c = kids.get(id) || [];
     for (const ch of c) setInternal(ch);
     if (c.length) {
-      const a0 = angle.get(c[0]);
-      const arr = c.map((ch) => unwrapAround(a0, angle.get(ch)));
-      angle.set(id, norm(arr.reduce((s, v) => s + v, 0) / arr.length));
+      angle.set(id, c.reduce((s, ch) => s + angle.get(ch), 0) / c.length);
     }
   })(root);
 
+  for (const [id, a] of angle) angle.set(id, norm(a));
   return angle;
 }
 

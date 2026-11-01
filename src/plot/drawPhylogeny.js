@@ -832,16 +832,21 @@ export default function drawPhylogeny(input, options = {}) {
     const maxX = Math.max(Math.abs(xExtent[0]), Math.abs(xExtent[1]));
     const maxY = Math.max(Math.abs(yExtent[0]), Math.abs(yExtent[1]));
     const maxRadius = Math.max(maxX, maxY);
-    const scaleUnroot = maxRadius + 2 * radialMargin;
+    // radialMargin is in pixels: as in the radial layout, the furthest node sits
+    // (radialMargin) px from the edge of a centred square, so the tree isn't
+    // stretched when width !== height. Keep some drawing room on small plots.
+    const side = Math.min(w, h);
+    const usablePx = Math.max(side / 2 - radialMargin, side / 4);
+    const scaleUnroot = maxRadius > 0 ? maxRadius * (side / 2) / usablePx : 1;
 
     const xScaleUnroot = d3
       .scaleLinear()
       .domain([-scaleUnroot, scaleUnroot])
-      .range([0, w]);
+      .range([(w - side) / 2, (w + side) / 2]);
     const yScaleUnroot = d3
       .scaleLinear()
       .domain([-scaleUnroot, scaleUnroot])
-      .range([h, 0]);
+      .range([(h + side) / 2, (h - side) / 2]);
 
     const svg = d3
       .create("svg")

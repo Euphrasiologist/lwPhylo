@@ -33,6 +33,41 @@ for (const layout of ["rect", "radial", "unrooted"]) {
   });
 }
 
+test("unrooted tree fills the plot inside radialMargin, whatever the branch length scale", () => {
+  for (const scaled of [newick, "((A:100,B:200):300,(C:150,(D:100,E:200)X:100)Y:200):0;"]) {
+    const svg = drawPhylogeny(scaled, { layout: "unrooted", width: 400, height: 400, radialMargin: 80 });
+    const xy = [...svg.querySelectorAll(".phylo_lines line")].flatMap((l) =>
+      ["x1", "x2", "y1", "y2"].map((a) => Number(l.getAttribute(a)))
+    );
+    const reach = Math.max(...xy.map((v) => Math.abs(v - 200)));
+    assert.ok(Math.abs(reach - 120) < 1e-6, `furthest node is ${reach}px from the centre`);
+  }
+});
+
+test("unrooted tree keeps its proportions on a non-square plot", () => {
+  const edges = (w, h) =>
+    [...drawPhylogeny(newick, { layout: "unrooted", width: w, height: h, radialMargin: 40 })
+      .querySelectorAll(".phylo_lines line")]
+      .map((l) => ["x1", "y1", "x2", "y2"].map((a) => Number(l.getAttribute(a))));
+  const square = edges(300, 300);
+  const wide = edges(500, 300);
+  wide.forEach(([x1, y1, x2, y2], i) => {
+    assert.ok(Math.abs(x1 - 100 - square[i][0]) < 1e-6);
+    assert.ok(Math.abs(y1 - square[i][1]) < 1e-6);
+    assert.ok(Math.abs(x2 - 100 - square[i][2]) < 1e-6);
+    assert.ok(Math.abs(y2 - square[i][3]) < 1e-6);
+  });
+});
+
+test("unrooted tree stays on the plot when radialMargin exceeds the available room", () => {
+  const svg = drawPhylogeny(newick, { layout: "unrooted", width: 100, height: 100 });
+  const xy = [...svg.querySelectorAll(".phylo_lines line")].flatMap((l) =>
+    ["x1", "x2", "y1", "y2"].map((a) => Number(l.getAttribute(a)))
+  );
+  xy.forEach((v) => assert.ok(v >= 0 && v <= 100));
+  assert.ok(Math.max(...xy) > 60);
+});
+
 for (const layout of ["rect", "radial", "unrooted"]) {
   test(`internalNodeCircles draws a circle per internal node [${layout}]`, () => {
     const without = drawPhylogeny(newick, { layout, width: 400, height: 400 });

@@ -22,6 +22,18 @@ for (const layout of ["rect", "radial", "unrooted"]) {
 }
 
 for (const layout of ["rect", "radial", "unrooted"]) {
+  test(`branches join with round caps but tips end flat [${layout}]`, () => {
+    const svg = drawPhylogeny(newick, { layout, width: 400, height: 400, strokeWidth: 3 });
+    const caps = [...svg.querySelectorAll("line, path")]
+      .filter((el) => el.getAttribute("stroke-width") === "3")
+      .map((el) => el.getAttribute("stroke-linecap"));
+    assert.equal(caps.filter((c) => c === "butt").length, 5); // one per tip
+    assert.ok(caps.filter((c) => c === "round").length > 0);
+    assert.equal(caps.filter((c) => c !== "butt" && c !== "round").length, 0);
+  });
+}
+
+for (const layout of ["rect", "radial", "unrooted"]) {
   test(`internalNodeCircles draws a circle per internal node [${layout}]`, () => {
     const without = drawPhylogeny(newick, { layout, width: 400, height: 400 });
     const withCircles = drawPhylogeny(newick, {

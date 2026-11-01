@@ -189,7 +189,8 @@ export default function drawPhylogeny(input, options = {}) {
       .attr("x2", (d) => xScale(d.x1))
       .attr("y2", (d) => yScale(d.y1))
       .attr("stroke", "#555")
-      .attr("stroke-width", strokeWidth);
+      .attr("stroke-width", strokeWidth)
+      .attr("stroke-linecap", (d) => (d.isTip ? "butt" : "round"));
 
     group
       .selectAll(".vline")
@@ -200,7 +201,8 @@ export default function drawPhylogeny(input, options = {}) {
       .attr("x2", (d) => xScale(d.x1))
       .attr("y2", (d) => yScale(d.y1))
       .attr("stroke", "#555")
-      .attr("stroke-width", strokeWidth);
+      .attr("stroke-width", strokeWidth)
+      .attr("stroke-linecap", "round");
 
     // tip dots
     const tipDots = group
@@ -504,7 +506,8 @@ export default function drawPhylogeny(input, options = {}) {
       )
       .attr("fill", "none")
       .attr("stroke", "#777")
-      .attr("stroke-width", strokeWidth);
+      .attr("stroke-width", strokeWidth)
+      .attr("stroke-linecap", "round");
 
     // ===== RADII (spokes) =====
     group
@@ -542,7 +545,8 @@ export default function drawPhylogeny(input, options = {}) {
           .attr("x2", X1s)
           .attr("y2", Y1s)
           .attr("stroke", "#777")
-          .attr("stroke-width", strokeWidth);
+          .attr("stroke-width", strokeWidth)
+          .attr("stroke-linecap", isTipSpoke ? "butt" : "round");
       });
 
     // ===== ALIGN GUIDES (optional) =====
@@ -849,6 +853,7 @@ export default function drawPhylogeny(input, options = {}) {
     const group = svg.append("g");
     const staticLayer = svg.append("g").attr("class", "phylo_static_highlight");
     const hoverLayer = svg.append("g").attr("class", "phylo_hover_highlight");
+    const tipNodeIds = new Set(unrootedPhylo.data.filter((d) => d.isTip).map((d) => d.thisId));
 
     group
       .append("g")
@@ -861,7 +866,8 @@ export default function drawPhylogeny(input, options = {}) {
       .attr("x2", (d) => xScaleUnroot(d.x2))
       .attr("y2", (d) => yScaleUnroot(d.y2))
       .attr("stroke-width", strokeWidth)
-      .attr("stroke", "#777");
+      .attr("stroke", "#777")
+      .attr("stroke-linecap", (d) => (tipNodeIds.has(d.id1) ? "butt" : "round"));
 
     const R_TIP = tipRadius ?? 4;
 
